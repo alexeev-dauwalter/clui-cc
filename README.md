@@ -19,7 +19,29 @@ A lightweight, transparent desktop overlay for [Claude Code](https://docs.anthro
 - **File & screenshot attachments** — paste images or attach files directly.
 - **Dual theme** — dark/light mode with system-follow option.
 
-## Prerequisites
+## Quick Start (Recommended)
+
+Copy and run these commands one at a time:
+
+```bash
+git clone https://github.com/lcoutodemos/clui-cc.git
+cd clui-cc
+./start.command
+```
+
+`start.command` runs environment checks first and prints exact fix commands if something is missing. If checks pass, it installs dependencies, builds, and launches the app.
+
+To close the app:
+
+```bash
+./stop.command
+```
+
+You can also double-click `start.command` and `stop.command` from Finder.
+
+Toggle the overlay: **Alt+Space** (or **Cmd+Shift+K** as fallback).
+
+## Prerequisites (Detailed)
 
 You need **macOS 13+**. Then install these one at a time — copy each command and paste it into Terminal.
 
@@ -73,35 +95,9 @@ brew install whisper-cli
 
 > **No API keys or `.env` file required.** Clui CC uses your existing Claude Code CLI authentication (Pro/Team/Enterprise subscription).
 
-## Quick Start
+## Development
 
-### Easiest (recommended)
-
-Copy and run these three commands one at a time:
-
-```bash
-git clone https://github.com/lcoutodemos/clui-cc.git
-```
-
-```bash
-cd clui-cc
-```
-
-```bash
-./start.command
-```
-
-This will install dependencies, build the app, and launch it. To close, use the tray icon (Quit) or run:
-
-```bash
-./stop.command
-```
-
-You can also double-click **`start.command`** and **`stop.command`** from Finder.
-
-Toggle the overlay: **Alt+Space** (or **Cmd+Shift+K** as fallback).
-
-### Development (hot reload)
+### Hot Reload
 
 If you are actively developing:
 
@@ -231,6 +227,36 @@ To undo the Python override later:
 npm config delete python
 ```
 
+**`npm install` fails with `fatal error: 'functional' file not found`**
+
+Your C++ headers are broken. This usually means Xcode Command Line Tools need to be reinstalled.
+
+First, check if they're installed:
+
+```bash
+xcode-select -p
+```
+
+```bash
+xcrun --sdk macosx --show-sdk-path
+```
+
+If either command fails, or the error persists, reinstall them:
+
+```bash
+sudo rm -rf /Library/Developer/CommandLineTools
+```
+
+```bash
+xcode-select --install
+```
+
+Then retry:
+
+```bash
+npm install
+```
+
 **`npm install` fails on `node-pty`**
 
 `node-pty` is a native macOS module. It does not build on Linux or Windows. Make sure you have Xcode CLT and Python setuptools installed (see above).
@@ -258,6 +284,16 @@ This is normal when offline. The marketplace needs internet to fetch the catalog
 **Window is invisible / no UI**
 
 Try **Cmd+Shift+K** as an alternative toggle. Check if the app is running in the menu bar tray.
+
+**Still stuck?**
+
+Run the environment doctor to see what's wrong:
+
+```bash
+npm run doctor
+```
+
+This prints pass/fail for every dependency without changing anything on your system.
 
 ## Tested On
 

@@ -7,13 +7,18 @@
 ```bash
 git clone https://github.com/lcoutodemos/clui-cc.git
 cd clui-cc
+npm run doctor     # verify environment — all checks should pass
 npm install        # installs deps + runs postinstall (electron-builder install-app-deps + icon patch)
 npm run build      # production build — must exit 0 with no errors
 ```
 
-**Prerequisites check:**
-- `xcode-select --install` completed (required for node-pty native compilation)
+**Prerequisites check (verified by `npm run doctor`):**
+- macOS 13+
+- Xcode Command Line Tools installed (`xcode-select -p` returns a path)
+- macOS SDK available (`xcrun --sdk macosx --show-sdk-path` returns a path)
+- clang++ available with working C++ headers
 - `node --version` returns 18+
+- `python3` available with `distutils` importable
 - `claude --version` returns 2.1+
 
 **Expected output:**

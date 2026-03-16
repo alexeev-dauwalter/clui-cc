@@ -10,17 +10,21 @@ Thanks for your interest in contributing! Clui CC is a desktop overlay for Claud
    git clone https://github.com/<your-username>/clui-cc.git
    cd clui-cc
    ```
-3. Install dependencies:
+3. Check your environment (optional but recommended):
+   ```bash
+   npm run doctor
+   ```
+4. Install dependencies:
    ```bash
    npm install
    ```
-   > If `npm install` fails with native compilation errors, run `xcode-select --install` first.
-4. Start the dev server:
+   > If `npm install` fails, run `npm run doctor` to see which dependency is missing.
+5. Start the dev server:
    ```bash
    npm run dev
    ```
-5. Make your changes in `src/`
-6. Verify your changes build cleanly:
+6. Make your changes in `src/`
+7. Verify your changes build cleanly:
    ```bash
    npm run build
    ```
