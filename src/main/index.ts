@@ -627,24 +627,110 @@ ipcMain.handle(IPC.TAKE_SCREENSHOT, async () => {
         stdio: 'ignore',
       })
     } else {
-      // Linux: try grim+slurp (Wayland), then gnome-screenshot (X11/Wayland), then scrot (X11)
+      // Linux: try XDG portal (GNOME/KDE Wayland), then grim+slurp (wlroots),
+      // gnome-screenshot, scrot (X11)
       let captured = false
-      if (process.env.XDG_SESSION_TYPE === 'wayland') {
+
+      const tryCapture = (cmd: string, label: string): boolean => {
         try {
-          execSync(`grim -g "$(slurp)" "${screenshotPath}"`, {
-            timeout: 30000, stdio: 'ignore', shell: '/bin/bash',
+          execSync(cmd, { timeout: 30000, stdio: 'ignore', shell: '/bin/bash' })
+          return true
+        } catch (e: any) {
+          log(`[screenshot] ${label} failed: ${e.message?.split('\n')[0] ?? e}`)
+          return false
+        }
+      }
+
+      // XDG Desktop Portal — works on GNOME/KDE Wayland without extra tools.
+      // The portal shows the native screenshot UI; GNOME saves the file to
+      // $XDG_PICTURES_DIR/<locale-dependent subdir>/ and does NOT return a URI
+      // in the D-Bus Response, so we watch the filesystem for new .png files.
+      if (!captured) {
+        try {
+          captured = await new Promise<boolean>((resolve) => {
+            const { spawn } = require('child_process')
+            const { watch, readdirSync, statSync, copyFileSync } = require('fs')
+            let done = false
+            const watchers: any[] = []
+            const finish = (ok: boolean) => {
+              if (done) return
+              done = true
+              clearTimeout(timer)
+              watchers.forEach((w) => w.close())
+              resolve(ok)
+            }
+
+            // Determine the Pictures directory
+            let picturesDir: string
+            try {
+              picturesDir = execSync('xdg-user-dir PICTURES', { encoding: 'utf8' }).trim()
+            } catch {
+              picturesDir = join(require('os').homedir(), 'Pictures')
+            }
+
+            // Collect all immediate subdirs (screenshots may be in a locale-named subdir)
+            const watchDirs = [picturesDir]
+            try {
+              for (const entry of readdirSync(picturesDir, { withFileTypes: true })) {
+                if (entry.isDirectory()) watchDirs.push(join(picturesDir, entry.name))
+              }
+            } catch {}
+
+            const beforeTime = Date.now()
+            const timer = setTimeout(() => {
+              log('[screenshot] xdg-portal timed out (30s)')
+              finish(false)
+            }, 30000)
+
+            // Watch for new .png files; wait for content to be flushed before copying
+            const tryCopy = (filePath: string, attempt = 0) => {
+              try {
+                const st = statSync(filePath)
+                if (st.mtimeMs >= beforeTime && st.size > 0) {
+                  copyFileSync(filePath, screenshotPath)
+                  log(`[screenshot] xdg-portal captured: ${filePath} (${st.size} bytes)`)
+                  finish(true)
+                  return
+                }
+              } catch {}
+              if (attempt < 10 && !done) setTimeout(() => tryCopy(filePath, attempt + 1), 200)
+            }
+            for (const dir of watchDirs) {
+              try {
+                const w = watch(dir, (_eventType: string, filename: string | null) => {
+                  if (done || !filename || !filename.endsWith('.png')) return
+                  tryCopy(join(dir, filename))
+                })
+                watchers.push(w)
+              } catch {}
+            }
+
+            // Call the portal to show the native screenshot UI
+            const call = spawn('gdbus', [
+              'call', '--session',
+              '--dest', 'org.freedesktop.portal.Desktop',
+              '--object-path', '/org/freedesktop/portal/desktop',
+              '--method', 'org.freedesktop.portal.Screenshot.Screenshot',
+              '', "{'interactive': <true>}",
+            ])
+            call.on('error', () => {
+              log('[screenshot] xdg-portal: gdbus call failed')
+              finish(false)
+            })
           })
-          captured = true
-        } catch {}
+        } catch (e: any) {
+          log(`[screenshot] xdg-portal failed: ${e.message?.split('\n')[0] ?? e}`)
+        }
+      }
+
+      if (!captured && process.env.XDG_SESSION_TYPE === 'wayland') {
+        captured = tryCapture(`grim -g "$(slurp)" "${screenshotPath}"`, 'grim+slurp')
       }
       if (!captured) {
-        try {
-          execSync(`gnome-screenshot -af "${screenshotPath}"`, { timeout: 30000, stdio: 'ignore' })
-          captured = true
-        } catch {}
+        captured = tryCapture(`gnome-screenshot -af "${screenshotPath}"`, 'gnome-screenshot')
       }
       if (!captured) {
-        execSync(`scrot -s "${screenshotPath}"`, { timeout: 30000, stdio: 'ignore' })
+        captured = tryCapture(`scrot -s "${screenshotPath}"`, 'scrot')
       }
     }
 
@@ -914,19 +1000,35 @@ ipcMain.handle(IPC.OPEN_IN_TERMINAL, (_event, arg: string | null | { sessionId?:
         else log(`Opened terminal with: ${cmd}`)
       })
     } else {
-      // Linux: try gnome-terminal, then xdg-terminal-exec, then xterm
-      const { spawn: spawnChild } = require('child_process')
+      // Linux: try terminal emulators in order, falling back on spawn error
+      const { spawn: spawnChild, execFileSync } = require('child_process')
       const bashCmd = `${cmd}; exec bash`
-      try {
-        spawnChild('gnome-terminal', ['--', 'bash', '-c', bashCmd], { detached: true, stdio: 'ignore' }).unref()
-      } catch {
+
+      const terminals = [
+        { bin: 'warp-terminal', args: [] as string[] },
+        { bin: 'gnome-terminal', args: ['--', 'bash', '-c', bashCmd] },
+        { bin: 'kgx', args: ['-e', 'bash', '-c', bashCmd] },
+        { bin: 'konsole', args: ['-e', 'bash', '-c', bashCmd] },
+        { bin: 'xdg-terminal-exec', args: ['bash', '-c', bashCmd] },
+        { bin: 'xterm', args: ['-e', 'bash', '-c', bashCmd] },
+      ]
+
+      let launched = false
+      for (const t of terminals) {
         try {
-          spawnChild('xdg-terminal-exec', ['bash', '-c', bashCmd], { detached: true, stdio: 'ignore' }).unref()
+          execFileSync('which', [t.bin], { stdio: 'ignore' })
+          spawnChild(t.bin, t.args, { detached: true, stdio: 'ignore', cwd: projectPath }).unref()
+          log(`Opened terminal (${t.bin}) with: ${cmd}`)
+          launched = true
+          break
         } catch {
-          spawnChild('xterm', ['-e', 'bash', '-c', bashCmd], { detached: true, stdio: 'ignore' }).unref()
+          continue
         }
       }
-      log(`Opened terminal with: ${cmd}`)
+      if (!launched) {
+        log('No terminal emulator found')
+        return false
+      }
     }
     return true
   } catch (err: unknown) {
