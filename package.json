@@ -2,13 +2,23 @@
   "name": "clui",
   "version": "0.1.0",
   "description": "Clui CC — Command Line User Interface for Claude Code",
+  "author": {
+    "name": "Peter Alexeev Dauwalter",
+    "email": "alexeev.dauwalter@41t.org"
+  },
+  "contributors": [
+    {
+      "name": "Lucas Couto",
+      "url": "https://github.com/lcoutodemos"
+    }
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/lcoutodemos/clui-cc.git"
+    "url": "https://github.com/alexeev-dauwalter/clui-cc.git"
   },
   "bugs": {
-    "url": "https://github.com/lcoutodemos/clui-cc/issues"
+    "url": "https://github.com/alexeev-dauwalter/clui-cc/issues"
   },
   "homepage": "https://github.com/lcoutodemos/clui-cc#readme",
   "main": "dist/main/index.js",
@@ -17,7 +27,7 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "dist": "electron-vite build --mode production && electron-builder --mac --dir",
-    "dist:linux": "electron-vite build --mode production && electron-builder --linux --dir",
+    "dist:linux": "electron-vite build --mode production && electron-builder --linux",
     "doctor": "bash scripts/doctor.sh",
     "postinstall": "electron-builder install-app-deps && bash scripts/patch-dev-icon.sh"
   },
@@ -32,6 +42,7 @@
   "build": {
     "appId": "com.clui.app",
     "productName": "Clui CC",
+    "executableName": "clui-cc",
     "directories": {
       "output": "release"
     },
@@ -51,9 +62,16 @@
       }
     },
     "linux": {
-      "icon": "resources/icon.png",
+      "icon": "resources/icons",
       "target": ["AppImage", "rpm"],
-      "category": "Development"
+      "category": "Development",
+      "desktop": {
+        "entry": {
+          "Name": "Clui CC",
+          "Comment": "Command Line User Interface for Claude Code",
+          "StartupWMClass": "clui-cc"
+        }
+      }
     }
   },
   "devDependencies": {
