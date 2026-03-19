@@ -446,8 +446,10 @@ export function InputBar() {
                     <button
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={handleSend}
-                      className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+                      className="w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer"
                       style={{ background: colors.sendBg, color: colors.textOnAccent }}
+                      onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
                       title={isBusy ? 'Queue message' : 'Send (Enter)'}
                     >
                       <ArrowUp size={16} weight="bold" />
@@ -504,8 +506,10 @@ export function InputBar() {
                     <button
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={handleSend}
-                      className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+                      className="w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer"
                       style={{ background: colors.sendBg, color: colors.textOnAccent }}
+                      onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
                       title={isBusy ? 'Queue message' : 'Send (Enter)'}
                     >
                       <ArrowUp size={16} weight="bold" />
@@ -552,8 +556,10 @@ function VoiceButtons({ voiceState, isConnecting, colors, onToggle, onCancel, on
           <button
             onMouseDown={(e) => e.preventDefault()}
             onClick={onCancel}
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer"
             style={{ background: colors.surfaceHover, color: colors.textTertiary }}
+            onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.2)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.filter = 'none' }}
             title="Cancel recording"
           >
             <X size={15} weight="bold" />
@@ -561,8 +567,10 @@ function VoiceButtons({ voiceState, isConnecting, colors, onToggle, onCancel, on
           <button
             onMouseDown={(e) => e.preventDefault()}
             onClick={onStop}
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer"
             style={{ background: colors.accent, color: colors.textOnAccent }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85' }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
             title="Confirm recording"
           >
             <Check size={15} weight="bold" />
@@ -584,11 +592,13 @@ function VoiceButtons({ voiceState, isConnecting, colors, onToggle, onCancel, on
             onMouseDown={(e) => e.preventDefault()}
             onClick={onToggle}
             disabled={isConnecting}
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer"
             style={{
               background: colors.micBg,
               color: isConnecting ? colors.micDisabled : colors.micColor,
             }}
+            onMouseEnter={(e) => { if (!isConnecting) e.currentTarget.style.filter = 'brightness(1.3)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.filter = 'none' }}
             title="Voice input"
           >
             <Microphone size={16} />

@@ -108,8 +108,10 @@ export function HistoryPicker() {
       <button
         ref={triggerRef}
         onClick={handleToggle}
-        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-colors"
+        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-colors cursor-pointer"
         style={{ color: colors.textTertiary }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = colors.textPrimary }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = colors.textTertiary }}
         title="Resume a previous session"
       >
         <Clock size={13} />

@@ -74,6 +74,8 @@ function ModelPicker() {
           color: colors.textTertiary,
           cursor: isBusy ? 'not-allowed' : 'pointer',
         }}
+        onMouseEnter={(e) => { if (!isBusy) e.currentTarget.style.color = colors.textSecondary }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = colors.textTertiary }}
         title={isBusy ? 'Stop the task to change model' : 'Switch model'}
       >
         {activeLabel}
@@ -179,6 +181,8 @@ function PermissionModePicker() {
           color: colors.textTertiary,
           cursor: 'pointer',
         }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = colors.textSecondary }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = colors.textTertiary }}
         title="Permission mode (global)"
       >
         <ShieldCheck size={11} weight={isAuto ? 'fill' : 'regular'} />
@@ -341,6 +345,8 @@ export function StatusBar() {
             cursor: isRunning ? 'not-allowed' : 'pointer',
             maxWidth: 140,
           }}
+          onMouseEnter={(e) => { if (!isRunning) e.currentTarget.style.color = colors.textSecondary }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = colors.textTertiary }}
           title={dirTooltip}
           disabled={isRunning}
         >
@@ -399,7 +405,7 @@ export function StatusBar() {
                         </span>
                         <button
                           onClick={() => removeDirectory(dir)}
-                          className="flex-shrink-0 opacity-50 hover:opacity-100 transition-opacity"
+                          className="flex-shrink-0 opacity-50 hover:opacity-100 transition-opacity cursor-pointer"
                           style={{ color: colors.textTertiary }}
                           title="Remove directory"
                         >
@@ -416,8 +422,10 @@ export function StatusBar() {
               {/* Add directory button */}
               <button
                 onClick={handleAddDir}
-                className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] transition-colors rounded-lg"
+                className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] transition-colors rounded-lg cursor-pointer"
                 style={{ color: colors.accent }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = colors.surfaceHover }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
               >
                 <Plus size={10} />
                 Add directory...
@@ -440,8 +448,10 @@ export function StatusBar() {
       <div className="flex items-center gap-1.5 flex-shrink-0">
         <button
           onClick={handleOpenInTerminal}
-          className="flex items-center gap-1 text-[11px] rounded-full px-2 py-0.5 transition-colors"
+          className="flex items-center gap-1 text-[11px] rounded-full px-2 py-0.5 transition-colors cursor-pointer"
           style={{ color: colors.textTertiary }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = colors.textPrimary }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = colors.textTertiary }}
           title="Open this session in Terminal"
         >
           Open in CLI

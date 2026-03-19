@@ -78,6 +78,8 @@ export function TabStrip() {
                   transition={{ duration: 0.15 }}
                   onClick={() => selectTab(tab.id)}
                   className="group flex items-center gap-1.5 cursor-pointer select-none flex-shrink-0 max-w-[160px] transition-all duration-150"
+                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = colors.textSecondary }}
+                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = colors.textTertiary }}
                   style={{
                     background: isActive ? colors.tabActive : 'transparent',
                     border: isActive ? `1px solid ${colors.tabActiveBorder}` : '1px solid transparent',
@@ -93,7 +95,7 @@ export function TabStrip() {
                   {tabs.length > 1 && (
                     <button
                       onClick={(e) => { e.stopPropagation(); closeTab(tab.id) }}
-                      className="flex-shrink-0 rounded-full w-4 h-4 flex items-center justify-center transition-opacity"
+                      className="flex-shrink-0 rounded-full w-4 h-4 flex items-center justify-center transition-opacity cursor-pointer"
                       style={{
                         opacity: isActive ? 0.5 : 0,
                         color: colors.textSecondary,
@@ -115,8 +117,10 @@ export function TabStrip() {
       <div className="flex items-center gap-0.5 flex-shrink-0 ml-1 pr-2">
         <button
           onClick={() => createTab()}
-          className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-colors"
+          className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-colors cursor-pointer"
           style={{ color: colors.textTertiary }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = colors.textPrimary }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = colors.textTertiary }}
           title="New tab"
         >
           <Plus size={14} />

@@ -24,7 +24,7 @@ function RowToggle({
       aria-label={label}
       aria-pressed={checked}
       onClick={() => onChange(!checked)}
-      className="relative w-9 h-5 rounded-full transition-colors"
+      className="relative w-9 h-5 rounded-full transition-colors cursor-pointer"
       style={{
         background: checked ? colors.accent : colors.surfaceSecondary,
         border: `1px solid ${checked ? colors.accent : colors.containerBorder}`,
@@ -130,8 +130,10 @@ export function SettingsPopover() {
       <button
         ref={triggerRef}
         onClick={handleToggle}
-        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-colors"
+        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-colors cursor-pointer"
         style={{ color: colors.textTertiary }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = colors.textPrimary }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = colors.textTertiary }}
         title="Settings"
       >
         <DotsThree size={16} weight="bold" />

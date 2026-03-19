@@ -158,8 +158,10 @@ export function ConversationView() {
           <div className="flex justify-center py-2">
             <button
               onClick={handleLoadOlder}
-              className="text-[11px] px-3 py-1 rounded-full transition-colors"
+              className="text-[11px] px-3 py-1 rounded-full transition-colors cursor-pointer"
               style={{ color: colors.textTertiary, border: `1px solid ${colors.toolBorder}` }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = colors.surfaceHover }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
             >
               Load {Math.min(PAGE_SIZE, hiddenCount)} older messages ({hiddenCount} hidden)
             </button>
@@ -258,8 +260,10 @@ export function ConversationView() {
               <span style={{ color: colors.statusError, fontSize: 11 }}>Failed</span>
               <button
                 onClick={handleRetry}
-                className="flex items-center gap-1 rounded-full px-2 py-0.5 transition-colors"
+                className="flex items-center gap-1 rounded-full px-2 py-0.5 transition-colors cursor-pointer"
                 style={{ color: colors.accent, fontSize: 11 }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = colors.accentSoft }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
               >
                 <ArrowCounterClockwise size={10} />
                 Retry
@@ -291,7 +295,7 @@ function EmptyState() {
   useEffect(() => {
     window.clui.getPlatformInfo().then(({ platform, isWayland }) => {
       if (platform === 'linux') {
-        setShortcutLabel(isWayland ? 'Re-launch app to toggle' : 'Ctrl + Alt + Space')
+        setShortcutLabel('Ctrl + Alt + Space')
       }
     }).catch(() => {})
   }, [])
@@ -317,6 +321,8 @@ function EmptyState() {
           border: 'none',
           cursor: 'pointer',
         }}
+        onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.3)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.filter = 'none' }}
       >
         <FolderOpen size={13} />
         Choose folder
