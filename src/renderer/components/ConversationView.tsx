@@ -286,6 +286,15 @@ export function ConversationView() {
 function EmptyState() {
   const setBaseDirectory = useSessionStore((s) => s.setBaseDirectory)
   const colors = useColors()
+  const [shortcutLabel, setShortcutLabel] = useState('⌥ + Space')
+
+  useEffect(() => {
+    window.clui.getPlatformInfo().then(({ platform, isWayland }) => {
+      if (platform === 'linux') {
+        setShortcutLabel(isWayland ? 'Re-launch app to toggle' : 'Ctrl + Alt + Space')
+      }
+    }).catch(() => {})
+  }, [])
 
   const handleChooseFolder = async () => {
     const dir = await window.clui.selectDirectory()
@@ -313,7 +322,7 @@ function EmptyState() {
         Choose folder
       </button>
       <span className="text-[11px]" style={{ color: colors.textTertiary }}>
-        Press <strong style={{ color: colors.textSecondary }}>⌥ + Space</strong> to show/hide this overlay
+        Press <strong style={{ color: colors.textSecondary }}>{shortcutLabel}</strong> to show/hide this overlay
       </span>
     </div>
   )

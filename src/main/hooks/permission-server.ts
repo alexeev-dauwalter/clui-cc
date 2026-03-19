@@ -61,6 +61,9 @@ const SAFE_BASH_COMMANDS = new Set([
   'tree', 'realpath', 'dirname', 'basename',
   // macOS
   'sw_vers', 'system_profiler', 'defaults', 'mdls', 'mdfind',
+  // Linux
+  'lsb_release', 'lscpu', 'lspci', 'lsblk', 'gsettings', 'xdg-open', 'xdg-mime',
+  'xrandr', 'loginctl', 'journalctl', 'hostnamectl', 'timedatectl',
   // Diff / compare
   'diff', 'cmp', 'comm', 'sort', 'uniq', 'cut', 'awk', 'sed',
   'jq', 'yq', 'xargs', 'tr',

@@ -313,7 +313,9 @@ export class PtyRunManager extends EventEmitter {
   private _findClaudeBinary(): string {
     const candidates = [
       '/usr/local/bin/claude',
-      '/opt/homebrew/bin/claude',
+      ...(process.platform === 'darwin'
+        ? ['/opt/homebrew/bin/claude']
+        : ['/usr/bin/claude', join(homedir(), '.local/bin/claude')]),
       join(homedir(), '.npm-global/bin/claude'),
     ]
 
@@ -324,13 +326,16 @@ export class PtyRunManager extends EventEmitter {
       } catch {}
     }
 
-    try {
-      return execSync('/bin/zsh -ilc "whence -p claude"', { encoding: 'utf-8', env: getCliEnv() }).trim()
-    } catch {}
+    const shellCommands: string[] = process.platform === 'darwin'
+      ? ['/bin/zsh -ilc "whence -p claude"', '/bin/bash -lc "which claude"']
+      : [`${process.env.SHELL || '/bin/bash'} -lc "which claude"`, '/bin/bash -lc "which claude"']
 
-    try {
-      return execSync('/bin/bash -lc "which claude"', { encoding: 'utf-8', env: getCliEnv() }).trim()
-    } catch {}
+    for (const cmd of shellCommands) {
+      try {
+        const result = execSync(cmd, { encoding: 'utf-8', env: getCliEnv() }).trim()
+        if (result) return result
+      } catch {}
+    }
 
     return 'claude'
   }

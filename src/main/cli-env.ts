@@ -1,4 +1,5 @@
 import { execSync } from 'child_process'
+import { homedir } from 'os'
 
 let cachedPath: string | null = null
 
@@ -21,15 +22,25 @@ export function getCliPath(): string {
   // Start from current process PATH.
   appendPathEntries(ordered, seen, process.env.PATH)
 
-  // Add common binary locations used on macOS (Homebrew + system).
-  appendPathEntries(ordered, seen, '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin')
+  // Add common binary locations (platform-specific).
+  if (process.platform === 'darwin') {
+    appendPathEntries(ordered, seen, '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin')
+  } else {
+    appendPathEntries(ordered, seen,
+      `/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${homedir()}/.local/bin:/snap/bin`)
+  }
 
-  // Try interactive login shell first so nvm/asdf/etc. PATH hooks are loaded.
-  const pathCommands = [
-    '/bin/zsh -ilc "echo $PATH"',
-    '/bin/zsh -lc "echo $PATH"',
-    '/bin/bash -lc "echo $PATH"',
-  ]
+  // Try login shell so nvm/asdf/etc. PATH hooks are loaded.
+  const pathCommands: string[] = process.platform === 'darwin'
+    ? [
+        '/bin/zsh -ilc "echo $PATH"',
+        '/bin/zsh -lc "echo $PATH"',
+        '/bin/bash -lc "echo $PATH"',
+      ]
+    : [
+        `${process.env.SHELL || '/bin/bash'} -lc "echo $PATH"`,
+        '/bin/bash -lc "echo $PATH"',
+      ]
 
   for (const cmd of pathCommands) {
     try {

@@ -11,6 +11,12 @@ import { getCliEnv } from './cli-env'
 import { IPC } from '../shared/types'
 import type { RunOptions, NormalizedEvent, EnrichedError } from '../shared/types'
 
+// Enable native Wayland rendering when available (sharp text on HiDPI).
+// Must be set before app is ready.
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
+}
+
 const DEBUG_MODE = process.env.CLUI_DEBUG === '1'
 const SPACES_DEBUG = DEBUG_MODE || process.env.CLUI_SPACES_DEBUG === '1'
 
@@ -27,6 +33,26 @@ let toggleSequence = 0
 const INTERACTIVE_PTY = process.env.CLUI_INTERACTIVE_PERMISSIONS_PTY === '1'
 
 const controlPlane = new ControlPlane(INTERACTIVE_PTY)
+
+// ─── Single-instance lock ───
+// On Wayland, globalShortcut doesn't work. Instead, the user assigns a GNOME/KDE
+// shortcut to re-launch the app binary. The second instance hits the lock, quits,
+// and the first instance toggles the window via 'second-instance' event.
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    log('[main] second-instance event — toggling window')
+    if (mainWindow) {
+      if (mainWindow.isVisible()) {
+        mainWindow.hide()
+      } else {
+        showWindow('second-instance')
+      }
+    }
+  })
+}
 
 // Keep native width fixed to avoid renderer animation vs setBounds race.
 // The UI itself still launches in compact mode; extra width is transparent/click-through.
@@ -117,7 +143,7 @@ function createWindow(): void {
     roundedCorners: true,
     backgroundColor: '#00000000',
     show: false,
-    icon: join(__dirname, '../../resources/icon.icns'),
+    icon: join(__dirname, process.platform === 'darwin' ? '../../resources/icon.icns' : '../../resources/icon.png'),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -128,14 +154,22 @@ function createWindow(): void {
   // Belt-and-suspenders: panel already joins all spaces and floats,
   // but explicit flags ensure correct behavior on older Electron builds.
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  mainWindow.setAlwaysOnTop(true, 'screen-saver')
+  // screen-saver level ensures floating above everything on macOS;
+  // on Linux/Wayland 'floating' is more reliably honored by compositors.
+  mainWindow.setAlwaysOnTop(true, process.platform === 'darwin' ? 'screen-saver' : 'floating')
 
   mainWindow.once('ready-to-show', () => {
+    log('[main] Window ready-to-show — calling show()')
     mainWindow?.show()
+    log('[main] Window shown')
     // Enable OS-level click-through for transparent regions.
     // { forward: true } ensures mousemove events still reach the renderer
     // so it can toggle click-through off when cursor enters interactive UI.
-    mainWindow?.setIgnoreMouseEvents(true, { forward: true })
+    // On Wayland, setIgnoreMouseEvents doesn't work (requires X11 XShape) —
+    // the window acts as a regular always-on-top panel instead.
+    if (process.platform === 'darwin' || process.env.XDG_SESSION_TYPE !== 'wayland') {
+      mainWindow?.setIgnoreMouseEvents(true, { forward: true })
+    }
     if (process.env.ELECTRON_RENDERER_URL) {
       mainWindow?.webContents.openDevTools({ mode: 'detach' })
     }
@@ -228,6 +262,15 @@ ipcMain.on(IPC.HIDE_WINDOW, () => {
 
 ipcMain.handle(IPC.IS_VISIBLE, () => {
   return mainWindow?.isVisible() ?? false
+})
+
+ipcMain.handle(IPC.GET_PLATFORM_INFO, () => {
+  const isWayland = process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland'
+  return {
+    platform: process.platform,
+    supportsClickThrough: process.platform === 'darwin' || (process.platform === 'linux' && !isWayland),
+    isWayland,
+  }
 })
 
 // OS-level click-through toggle — renderer calls this on mousemove
@@ -578,10 +621,32 @@ ipcMain.handle(IPC.TAKE_SCREENSHOT, async () => {
     const timestamp = Date.now()
     const screenshotPath = join(tmpdir(), `clui-screenshot-${timestamp}.png`)
 
-    execSync(`/usr/sbin/screencapture -i "${screenshotPath}"`, {
-      timeout: 30000,
-      stdio: 'ignore',
-    })
+    if (process.platform === 'darwin') {
+      execSync(`/usr/sbin/screencapture -i "${screenshotPath}"`, {
+        timeout: 30000,
+        stdio: 'ignore',
+      })
+    } else {
+      // Linux: try grim+slurp (Wayland), then gnome-screenshot (X11/Wayland), then scrot (X11)
+      let captured = false
+      if (process.env.XDG_SESSION_TYPE === 'wayland') {
+        try {
+          execSync(`grim -g "$(slurp)" "${screenshotPath}"`, {
+            timeout: 30000, stdio: 'ignore', shell: '/bin/bash',
+          })
+          captured = true
+        } catch {}
+      }
+      if (!captured) {
+        try {
+          execSync(`gnome-screenshot -af "${screenshotPath}"`, { timeout: 30000, stdio: 'ignore' })
+          captured = true
+        } catch {}
+      }
+      if (!captured) {
+        execSync(`scrot -s "${screenshotPath}"`, { timeout: 30000, stdio: 'ignore' })
+      }
+    }
 
     if (!existsSync(screenshotPath)) {
       return null
@@ -656,12 +721,13 @@ ipcMain.handle(IPC.TRANSCRIBE_AUDIO, async (_event, audioBase64: string) => {
     const buf = Buffer.from(audioBase64, 'base64')
     writeFileSync(tmpWav, buf)
 
-    // Find whisper-cli (whisper-cpp homebrew) or whisper (python)
+    // Find whisper-cli (whisper-cpp) or whisper (python)
     const candidates = [
-      '/opt/homebrew/bin/whisper-cli',
-      '/usr/local/bin/whisper-cli',
-      '/opt/homebrew/bin/whisper',
-      '/usr/local/bin/whisper',
+      ...(process.platform === 'darwin'
+        ? ['/opt/homebrew/bin/whisper-cli', '/usr/local/bin/whisper-cli',
+           '/opt/homebrew/bin/whisper', '/usr/local/bin/whisper']
+        : ['/usr/bin/whisper-cli', '/usr/bin/whisper', '/usr/local/bin/whisper-cli', '/usr/local/bin/whisper']),
+      join(homedir(), '.local/bin/whisper-cli'),
       join(homedir(), '.local/bin/whisper'),
     ]
 
@@ -671,19 +737,23 @@ ipcMain.handle(IPC.TRANSCRIBE_AUDIO, async (_event, audioBase64: string) => {
     }
 
     if (!whisperBin) {
-      try {
-        whisperBin = execSync('/bin/zsh -lc "whence -p whisper-cli"', { encoding: 'utf-8' }).trim()
-      } catch {}
-    }
-    if (!whisperBin) {
-      try {
-        whisperBin = execSync('/bin/zsh -lc "whence -p whisper"', { encoding: 'utf-8' }).trim()
-      } catch {}
+      // Ask login shell to find whisper
+      const shell = process.platform === 'darwin' ? '/bin/zsh' : (process.env.SHELL || '/bin/bash')
+      const whichCmd = process.platform === 'darwin' ? 'whence -p' : 'which'
+      for (const bin of ['whisper-cli', 'whisper']) {
+        try {
+          whisperBin = execSync(`${shell} -lc "${whichCmd} ${bin}"`, { encoding: 'utf-8' }).trim()
+          if (whisperBin) break
+        } catch {}
+      }
     }
 
     if (!whisperBin) {
+      const installHint = process.platform === 'darwin'
+        ? 'Install with: brew install whisper-cli'
+        : 'Install with: pip install openai-whisper'
       return {
-        error: 'Whisper not found. Install with: brew install whisper-cli',
+        error: `Whisper not found. ${installHint}`,
         transcript: null,
       }
     }
@@ -694,13 +764,27 @@ ipcMain.handle(IPC.TRANSCRIBE_AUDIO, async (_event, audioBase64: string) => {
     const modelCandidates = [
       join(homedir(), '.local/share/whisper/ggml-base.bin'),
       join(homedir(), '.local/share/whisper/ggml-tiny.bin'),
-      '/opt/homebrew/share/whisper-cpp/models/ggml-base.bin',
-      '/opt/homebrew/share/whisper-cpp/models/ggml-tiny.bin',
+      ...(process.platform === 'darwin'
+        ? [
+            '/opt/homebrew/share/whisper-cpp/models/ggml-base.bin',
+            '/opt/homebrew/share/whisper-cpp/models/ggml-tiny.bin',
+          ]
+        : [
+            '/usr/share/whisper-cpp/models/ggml-base.bin',
+            '/usr/share/whisper-cpp/models/ggml-tiny.bin',
+          ]),
       // Fall back to English-only models if multilingual not available
       join(homedir(), '.local/share/whisper/ggml-base.en.bin'),
       join(homedir(), '.local/share/whisper/ggml-tiny.en.bin'),
-      '/opt/homebrew/share/whisper-cpp/models/ggml-base.en.bin',
-      '/opt/homebrew/share/whisper-cpp/models/ggml-tiny.en.bin',
+      ...(process.platform === 'darwin'
+        ? [
+            '/opt/homebrew/share/whisper-cpp/models/ggml-base.en.bin',
+            '/opt/homebrew/share/whisper-cpp/models/ggml-tiny.en.bin',
+          ]
+        : [
+            '/usr/share/whisper-cpp/models/ggml-base.en.bin',
+            '/usr/share/whisper-cpp/models/ggml-tiny.en.bin',
+          ]),
     ]
 
     let modelPath = ''
@@ -810,25 +894,40 @@ ipcMain.handle(IPC.OPEN_IN_TERMINAL, (_event, arg: string | null | { sessionId?:
     projectPath = arg.projectPath && arg.projectPath !== '~' ? arg.projectPath : process.cwd()
   }
 
-  // Escape for AppleScript: double quotes → backslash-escaped, backslashes doubled
-  const projectDir = projectPath.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
   let cmd: string
   if (sessionId) {
-    cmd = `cd \\"${projectDir}\\" && ${claudeBin} --resume ${sessionId}`
+    cmd = `cd "${projectPath}" && ${claudeBin} --resume ${sessionId}`
   } else {
-    cmd = `cd \\"${projectDir}\\" && ${claudeBin}`
+    cmd = `cd "${projectPath}" && ${claudeBin}`
   }
 
-  const script = `tell application "Terminal"
-  activate
-  do script "${cmd}"
-end tell`
-
   try {
-    execFile('/usr/bin/osascript', ['-e', script], (err: Error | null) => {
-      if (err) log(`Failed to open terminal: ${err.message}`)
-      else log(`Opened terminal with: ${cmd}`)
-    })
+    if (process.platform === 'darwin') {
+      // macOS: AppleScript to open Terminal.app
+      const projectDir = projectPath.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+      const appleCmd = sessionId
+        ? `cd \\"${projectDir}\\" && ${claudeBin} --resume ${sessionId}`
+        : `cd \\"${projectDir}\\" && ${claudeBin}`
+      const script = `tell application "Terminal"\n  activate\n  do script "${appleCmd}"\nend tell`
+      execFile('/usr/bin/osascript', ['-e', script], (err: Error | null) => {
+        if (err) log(`Failed to open terminal: ${err.message}`)
+        else log(`Opened terminal with: ${cmd}`)
+      })
+    } else {
+      // Linux: try gnome-terminal, then xdg-terminal-exec, then xterm
+      const { spawn: spawnChild } = require('child_process')
+      const bashCmd = `${cmd}; exec bash`
+      try {
+        spawnChild('gnome-terminal', ['--', 'bash', '-c', bashCmd], { detached: true, stdio: 'ignore' }).unref()
+      } catch {
+        try {
+          spawnChild('xdg-terminal-exec', ['bash', '-c', bashCmd], { detached: true, stdio: 'ignore' }).unref()
+        } catch {
+          spawnChild('xterm', ['-e', 'bash', '-c', bashCmd], { detached: true, stdio: 'ignore' }).unref()
+        }
+      }
+      log(`Opened terminal with: ${cmd}`)
+    }
     return true
   } catch (err: unknown) {
     log(`Failed to open terminal: ${err}`)
@@ -895,6 +994,12 @@ async function requestPermissions(): Promise<void> {
 // ─── App Lifecycle ───
 
 app.whenReady().then(async () => {
+  const isWayland = process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland'
+  log(`[main] Platform: ${process.platform}, session: ${process.env.XDG_SESSION_TYPE || 'n/a'}, ozone: ${process.platform === 'linux' ? 'auto' : 'n/a'}`)
+  if (gotLock) {
+    log('[main] Single-instance lock acquired — re-launch will toggle window')
+  }
+
   // macOS: become an accessory app. Accessory apps can have key windows (keyboard works)
   // without deactivating the currently active app (hover preserved in browsers).
   // This is how Spotlight, Alfred, Raycast work.
@@ -940,17 +1045,31 @@ app.whenReady().then(async () => {
   }
 
 
-  // Primary: Option+Space (2 keys, doesn't conflict with shell)
-  // Fallback: Cmd+Shift+K kept as secondary shortcut
-  const registered = globalShortcut.register('Alt+Space', () => toggleWindow('shortcut Alt+Space'))
-  if (!registered) {
-    log('Alt+Space shortcut registration failed — macOS input sources may claim it')
+  // Platform-specific primary shortcut:
+  // macOS: Alt+Space (doesn't conflict with shell)
+  // Linux: Ctrl+Alt+Space (Alt+Space = GNOME window menu, Super+Space = input switch)
+  if (process.platform === 'darwin') {
+    const registered = globalShortcut.register('Alt+Space', () => toggleWindow('shortcut Alt+Space'))
+    log(`[main] Shortcut Alt+Space: registered=${registered}`)
+    if (!registered) {
+      log('Alt+Space shortcut registration failed — macOS input sources may claim it')
+    }
+  } else {
+    const registered = globalShortcut.register('Ctrl+Alt+Space', () => toggleWindow('shortcut Ctrl+Alt+Space'))
+    log(`[main] Shortcut Ctrl+Alt+Space: registered=${registered}${isWayland ? ' (NOTE: may not work on Wayland — use GNOME custom shortcut to re-launch app instead)' : ''}`)
+    if (!registered) {
+      log('Ctrl+Alt+Space shortcut registration failed — try setting a custom GNOME shortcut via: gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings ...')
+    }
   }
-  globalShortcut.register('CommandOrControl+Shift+K', () => toggleWindow('shortcut Cmd/Ctrl+Shift+K'))
+  // Fallback shortcut on all platforms
+  const fallbackRegistered = globalShortcut.register('CommandOrControl+Shift+K', () => toggleWindow('shortcut Cmd/Ctrl+Shift+K'))
+  log(`[main] Shortcut Ctrl+Shift+K: registered=${fallbackRegistered}${isWayland ? ' (NOTE: may not work on Wayland)' : ''}`)
 
   const trayIconPath = join(__dirname, '../../resources/trayTemplate.png')
   const trayIcon = nativeImage.createFromPath(trayIconPath)
-  trayIcon.setTemplateImage(true)
+  if (process.platform === 'darwin') {
+    trayIcon.setTemplateImage(true)
+  }
   tray = new Tray(trayIcon)
   tray.setToolTip('Clui CC — Claude Code UI')
   tray.on('click', () => toggleWindow('tray click'))

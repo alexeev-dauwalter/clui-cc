@@ -57,37 +57,54 @@ export default function App() {
     })
   }, [])
 
-  // OS-level click-through (RAF-throttled to avoid per-pixel IPC)
+  // OS-level click-through (RAF-throttled to avoid per-pixel IPC).
+  // Disabled on Wayland where setIgnoreMouseEvents is not supported.
   useEffect(() => {
     if (!window.clui?.setIgnoreMouseEvents) return
+    let cancelled = false
     let lastIgnored: boolean | null = null
 
-    const onMouseMove = (e: MouseEvent) => {
-      const el = document.elementFromPoint(e.clientX, e.clientY)
-      const isUI = !!(el && el.closest('[data-clui-ui]'))
-      const shouldIgnore = !isUI
-      if (shouldIgnore !== lastIgnored) {
-        lastIgnored = shouldIgnore
-        if (shouldIgnore) {
-          window.clui.setIgnoreMouseEvents(true, { forward: true })
-        } else {
-          window.clui.setIgnoreMouseEvents(false)
+    window.clui.getPlatformInfo().then(({ supportsClickThrough }) => {
+      if (cancelled || !supportsClickThrough) return
+
+      const onMouseMove = (e: MouseEvent) => {
+        const el = document.elementFromPoint(e.clientX, e.clientY)
+        const isUI = !!(el && el.closest('[data-clui-ui]'))
+        const shouldIgnore = !isUI
+        if (shouldIgnore !== lastIgnored) {
+          lastIgnored = shouldIgnore
+          if (shouldIgnore) {
+            window.clui.setIgnoreMouseEvents(true, { forward: true })
+          } else {
+            window.clui.setIgnoreMouseEvents(false)
+          }
         }
       }
-    }
 
-    const onMouseLeave = () => {
-      if (lastIgnored !== true) {
-        lastIgnored = true
-        window.clui.setIgnoreMouseEvents(true, { forward: true })
+      const onMouseLeave = () => {
+        if (lastIgnored !== true) {
+          lastIgnored = true
+          window.clui.setIgnoreMouseEvents(true, { forward: true })
+        }
       }
-    }
 
-    document.addEventListener('mousemove', onMouseMove)
-    document.addEventListener('mouseleave', onMouseLeave)
+      document.addEventListener('mousemove', onMouseMove)
+      document.addEventListener('mouseleave', onMouseLeave)
+      // Store cleanup in cancelled flag — cleanup runs in effect teardown
+      const origCancelled = cancelled
+      Object.defineProperty(window, '__cluiClickThroughCleanup', {
+        value: () => {
+          document.removeEventListener('mousemove', onMouseMove)
+          document.removeEventListener('mouseleave', onMouseLeave)
+        },
+        configurable: true,
+      })
+    }).catch(() => {})
+
     return () => {
-      document.removeEventListener('mousemove', onMouseMove)
-      document.removeEventListener('mouseleave', onMouseLeave)
+      cancelled = true
+      const cleanup = (window as any).__cluiClickThroughCleanup
+      if (typeof cleanup === 'function') cleanup()
     }
   }, [])
 
