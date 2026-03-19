@@ -1,5 +1,5 @@
 {
-  "name": "clui",
+  "name": "clui-cc",
   "version": "0.1.0",
   "description": "Clui CC — Command Line User Interface for Claude Code",
   "author": {
@@ -40,7 +40,7 @@
     "zustand": "^5.0.0"
   },
   "build": {
-    "appId": "com.clui.app",
+    "appId": "com.clui-cc.app",
     "productName": "Clui CC",
     "executableName": "clui-cc",
     "directories": {

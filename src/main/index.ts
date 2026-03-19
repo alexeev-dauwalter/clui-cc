@@ -394,8 +394,8 @@ ipcMain.handle(IPC.LIST_SESSIONS, async (_e, projectPath?: string) => {
   try {
     const cwd = projectPath || process.cwd()
     // Claude stores project sessions at ~/.claude/projects/<encoded-path>/
-    // Path encoding: replace all '/' with '-' (leading '/' becomes leading '-')
-    const encodedPath = cwd.replace(/\//g, '-')
+    // Path encoding: replace '/' and '_' with '-' (matches Claude CLI behavior)
+    const encodedPath = cwd.replace(/[/_]/g, '-')
     const sessionsDir = join(homedir(), '.claude', 'projects', encodedPath)
     if (!existsSync(sessionsDir)) {
       log(`LIST_SESSIONS: directory not found: ${sessionsDir}`)
@@ -475,7 +475,7 @@ ipcMain.handle(IPC.LOAD_SESSION, async (_e, arg: { sessionId: string; projectPat
   log(`IPC LOAD_SESSION ${sessionId}${projectPath ? ` (path=${projectPath})` : ''}`)
   try {
     const cwd = projectPath || process.cwd()
-    const encodedPath = cwd.replace(/\//g, '-')
+    const encodedPath = cwd.replace(/[/_]/g, '-')
     const filePath = join(homedir(), '.claude', 'projects', encodedPath, `${sessionId}.jsonl`)
     if (!existsSync(filePath)) return []
 
