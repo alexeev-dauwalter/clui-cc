@@ -589,8 +589,18 @@ ipcMain.handle(IPC.LIST_CODEX_SESSIONS, async (_e, projectPath?: string) => {
               meta = obj.payload
             }
             if (!firstUserMsg && obj.type === 'event_msg' && obj.payload?.type === 'user_message') {
-              const content = obj.payload?.message?.content || ''
-              firstUserMsg = typeof content === 'string' ? content.substring(0, 200) : ''
+              const raw = obj.payload?.message || ''
+              if (typeof raw === 'string') {
+                try {
+                  const parsed = JSON.parse(raw)
+                  firstUserMsg = (parsed.prompt || raw).substring(0, 200)
+                } catch {
+                  firstUserMsg = raw.substring(0, 200)
+                }
+              } else {
+                const content = raw?.content || ''
+                firstUserMsg = typeof content === 'string' ? content.substring(0, 200) : ''
+              }
             }
             if (meta && firstUserMsg) break
           } catch {}

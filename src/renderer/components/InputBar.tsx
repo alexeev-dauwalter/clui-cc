@@ -419,7 +419,7 @@ export function InputBar() {
                       ? 'Transcribing...'
                       : isBusy
                         ? 'Type to queue a message...'
-                        : tab?.backend === 'codex' ? 'Ask Codex anything...' : 'Ask Orbiter anything...'
+                        : tab?.backend === 'codex' ? 'Ask Codex anything...' : 'Ask Claude anything...'
               }
               rows={1}
               className="w-full bg-transparent resize-none text-text-primary"
@@ -474,7 +474,7 @@ export function InputBar() {
                       ? 'Transcribing...'
                       : isBusy
                         ? 'Type to queue a message...'
-                        : tab?.backend === 'codex' ? 'Ask Codex anything...' : 'Ask Orbiter anything...'
+                        : tab?.backend === 'codex' ? 'Ask Codex anything...' : 'Ask Claude anything...'
               }
               rows={1}
               className="flex-1 bg-transparent resize-none text-text-primary"

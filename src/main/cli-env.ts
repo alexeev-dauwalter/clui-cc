@@ -27,7 +27,7 @@ export function getCliPath(): string {
     appendPathEntries(ordered, seen, '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin')
   } else {
     appendPathEntries(ordered, seen,
-      `/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${homedir()}/.local/bin:/snap/bin`)
+      `/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${homedir()}/.local/bin:${homedir()}/.yarn/bin:/snap/bin`)
   }
 
   // Try login shell so nvm/asdf/etc. PATH hooks are loaded.

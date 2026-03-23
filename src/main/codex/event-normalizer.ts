@@ -164,8 +164,11 @@ export class CodexNormalizer {
         const item = ev.item
         if (!item) return []
 
-        // Reasoning items — skip silently
-        if (item.type === 'reasoning') return []
+        // Reasoning items — emit as thinking block
+        if (item.type === 'reasoning') {
+          if (item.text) return [{ type: 'thinking_chunk', text: item.text }]
+          return []
+        }
 
         // Tool completed — emit output before marking complete
         if (TOOL_ITEM_TYPES.has(item.type)) {

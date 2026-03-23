@@ -58,6 +58,7 @@ export class CodexRunManager extends EventEmitter {
       ...(process.platform === 'darwin'
         ? ['/opt/homebrew/bin/codex']
         : ['/usr/bin/codex', join(homedir(), '.local/bin/codex')]),
+      join(homedir(), '.yarn/bin/codex'),
       join(homedir(), '.npm-global/bin/codex'),
     ]
 

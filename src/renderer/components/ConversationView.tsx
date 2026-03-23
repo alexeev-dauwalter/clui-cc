@@ -25,6 +25,7 @@ type GroupedItem =
   | { kind: 'user'; message: Message }
   | { kind: 'assistant'; message: Message }
   | { kind: 'system'; message: Message }
+  | { kind: 'thinking'; message: Message }
   | { kind: 'tool-group'; messages: Message[] }
 
 // ─── Helpers ───
@@ -47,6 +48,7 @@ function groupMessages(messages: Message[]): GroupedItem[] {
       flushTools()
       if (msg.role === 'user') result.push({ kind: 'user', message: msg })
       else if (msg.role === 'assistant') result.push({ kind: 'assistant', message: msg })
+      else if (msg.role === 'thinking') result.push({ kind: 'thinking', message: msg })
       else result.push({ kind: 'system', message: msg })
     }
   }
@@ -177,6 +179,8 @@ export function ConversationView() {
                 return <AssistantMessage key={item.message.id} message={item.message} skipMotion={isHistorical} />
               case 'tool-group':
                 return <ToolGroup key={`tg-${item.messages[0].id}`} tools={item.messages} skipMotion={isHistorical} />
+              case 'thinking':
+                return <ThinkingBlock key={item.message.id} message={item.message} skipMotion={isHistorical} />
               case 'system':
                 return <SystemMessage key={item.message.id} message={item.message} skipMotion={isHistorical} />
               default:
@@ -582,6 +586,46 @@ const AssistantMessage = React.memo(function AssistantMessage({
   )
 }, (prev, next) => prev.message.content === next.message.content && prev.skipMotion === next.skipMotion)
 
+// ─── Thinking Block (collapsible reasoning — Codex) ───
+
+function ThinkingBlock({ message, skipMotion }: { message: Message; skipMotion?: boolean }) {
+  const [expanded, setExpanded] = useState(false)
+
+  const inner = (
+    <div className="py-0.5">
+      <div
+        className="flex items-center gap-1 cursor-pointer select-none"
+        onClick={() => setExpanded(!expanded)}
+      >
+        {expanded
+          ? <CaretDownIcon size={10} className="text-text-tertiary" />
+          : <CaretRightIcon size={10} className="text-text-tertiary" />
+        }
+        <span className="text-[11px] text-text-tertiary">
+          Thinking
+        </span>
+      </div>
+      {expanded && (
+        <div className="ml-3 mt-1 text-[12px] leading-[1.5] text-text-tertiary italic max-h-[120px] overflow-y-auto px-2 py-1 rounded bg-surface-hover border border-tool-border">
+          {message.content}
+        </div>
+      )}
+    </div>
+  )
+
+  if (skipMotion) return inner
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.12 }}
+    >
+      {inner}
+    </motion.div>
+  )
+}
+
 // ─── Tool Group (collapsible timeline — Claude Code style) ───
 
 /** Build a short description from tool name + input for the collapsed summary */
@@ -639,8 +683,8 @@ function ToolGroup({ tools, skipMotion }: { tools: Message[]; skipMotion?: boole
             className="flex items-center gap-1 cursor-pointer mb-1.5"
             onClick={() => setExpanded(false)}
           >
-            <CaretDownIcon size={10} className="text-text-muted" />
-            <span className="text-[11px] text-text-muted">
+            <CaretDownIcon size={10} className="text-text-tertiary" />
+            <span className="text-[11px] text-text-tertiary">
               Used {tools.length} tool{tools.length !== 1 ? 's' : ''}
             </span>
           </div>
@@ -682,14 +726,14 @@ function ToolGroup({ tools, skipMotion }: { tools: Message[]; skipMotion?: boole
                     {/* Result badge */}
                     {!isRunning && (
                       <span
-                        className={`inline-block text-[10px] mt-0.5 px-1.5 py-[1px] rounded ${tool.toolStatus === 'error' ? 'bg-status-error-bg text-status-error' : 'bg-surface-hover text-text-muted'}`}
+                        className={`inline-block text-[10px] mt-0.5 px-1.5 py-[1px] rounded ${tool.toolStatus === 'error' ? 'bg-status-error-bg text-status-error' : 'bg-surface-hover text-text-tertiary'}`}
                       >
                         Result
                       </span>
                     )}
 
                     {isRunning && (
-                      <span className="text-[10px] mt-0.5 block text-text-muted">
+                      <span className="text-[10px] mt-0.5 block text-text-tertiary">
                         running...
                       </span>
                     )}

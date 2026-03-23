@@ -181,7 +181,7 @@ export interface TabState {
 
 export interface Message {
   id: string
-  role: 'user' | 'assistant' | 'tool' | 'system'
+  role: 'user' | 'assistant' | 'tool' | 'system' | 'thinking'
   content: string
   toolName?: string
   toolInput?: string
@@ -202,6 +202,7 @@ export interface RunResult {
 export type NormalizedEvent =
   | { type: 'session_init'; sessionId: string; tools: string[]; model: string; mcpServers: Array<{ name: string; status: string }>; skills: string[]; version: string; isWarmup?: boolean }
   | { type: 'text_chunk'; text: string }
+  | { type: 'thinking_chunk'; text: string }
   | { type: 'tool_call'; toolName: string; toolId: string; index: number }
   | { type: 'tool_call_update'; toolId: string; partialInput: string }
   | { type: 'tool_call_complete'; index: number }

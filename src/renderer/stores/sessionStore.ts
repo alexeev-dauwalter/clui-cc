@@ -682,6 +682,23 @@ export const useSessionStore = create<State>((set, get) => ({
             break
           }
 
+          case 'thinking_chunk': {
+            updated.currentActivity = 'Thinking...'
+            const lastThinking = updated.messages[updated.messages.length - 1]
+            if (lastThinking?.role === 'thinking') {
+              updated.messages = [
+                ...updated.messages.slice(0, -1),
+                { ...lastThinking, content: lastThinking.content + event.text },
+              ]
+            } else {
+              updated.messages = [
+                ...updated.messages,
+                { id: nextMsgId(), role: 'thinking', content: event.text, timestamp: Date.now() },
+              ]
+            }
+            break
+          }
+
           case 'tool_call':
             updated.currentActivity = `Running ${event.toolName}...`
             updated.messages = [
