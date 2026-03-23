@@ -1,7 +1,7 @@
 {
-  "name": "clui-cc",
+  "name": "orbiter",
   "version": "0.1.0",
-  "description": "Clui CC — Command Line User Interface for Claude Code",
+  "description": "Orbiter — Desktop UI for Claude Code & Codex",
   "author": {
     "name": "Peter Alexeev Dauwalter",
     "email": "alexeev.dauwalter@41t.org"
@@ -15,12 +15,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/alexeev-dauwalter/clui-cc.git"
+    "url": "https://github.com/alexeev-dauwalter/orbiter.git"
   },
   "bugs": {
-    "url": "https://github.com/alexeev-dauwalter/clui-cc/issues"
+    "url": "https://github.com/alexeev-dauwalter/orbiter/issues"
   },
-  "homepage": "https://github.com/lcoutodemos/clui-cc#readme",
+  "homepage": "https://github.com/lcoutodemos/orbiter#readme",
   "main": "dist/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -40,9 +40,9 @@
     "zustand": "^5.0.0"
   },
   "build": {
-    "appId": "com.clui-cc.app",
-    "productName": "Clui CC",
-    "executableName": "clui-cc",
+    "appId": "com.orbiter.app",
+    "productName": "Orbiter",
+    "executableName": "orbiter",
     "directories": {
       "output": "release"
     },
@@ -58,7 +58,7 @@
       "entitlements": "resources/entitlements.mac.plist",
       "entitlementsInherit": "resources/entitlements.mac.plist",
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "Clui CC uses your microphone to transcribe voice input locally with Whisper."
+        "NSMicrophoneUsageDescription": "Orbiter uses your microphone to transcribe voice input locally with Whisper."
       }
     },
     "linux": {
@@ -67,9 +67,9 @@
       "category": "Development",
       "desktop": {
         "entry": {
-          "Name": "Clui CC",
-          "Comment": "Command Line User Interface for Claude Code",
-          "StartupWMClass": "clui-cc"
+          "Name": "Orbiter",
+          "Comment": "Desktop UI for Claude Code & Codex",
+          "StartupWMClass": "orbiter"
         }
       }
     }

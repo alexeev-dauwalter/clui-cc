@@ -1,15 +1,8 @@
 import { create } from 'zustand'
-import type { TabStatus, NormalizedEvent, EnrichedError, Message, TabState, Attachment, CatalogPlugin, PluginStatus } from '../../shared/types'
+import type { BackendType, TabStatus, NormalizedEvent, EnrichedError, Message, TabState, Attachment, CatalogPlugin, PluginStatus } from '../../shared/types'
+import { BACKEND_CONFIGS } from '../../shared/backend-config'
 import { useThemeStore } from '../theme'
 import notificationSrc from '../../../resources/notification.mp3'
-
-// ─── Known models ───
-
-export const AVAILABLE_MODELS = [
-  { id: 'claude-opus-4-6', label: 'Opus 4.6' },
-  { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
-  { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },
-] as const
 
 // ─── Store ───
 
@@ -28,10 +21,10 @@ interface State {
   isExpanded: boolean
   /** Global info fetched on startup (not per-session) */
   staticInfo: StaticInfo | null
-  /** User's preferred model override (null = use default) */
-  preferredModel: string | null
   /** Global permission mode: 'ask' shows cards, 'auto' auto-approves all tool calls */
   permissionMode: 'ask' | 'auto'
+  /** Whether Codex CLI is available on this machine */
+  codexAvailable: boolean
 
   // Marketplace state
   marketplaceOpen: boolean
@@ -47,6 +40,7 @@ interface State {
   initStaticInfo: () => Promise<void>
   setPreferredModel: (model: string | null) => void
   setPermissionMode: (mode: 'ask' | 'auto') => void
+  setTabBackend: (backend: BackendType) => void
   createTab: () => Promise<string>
   selectTab: (tabId: string) => void
   closeTab: (tabId: string) => void
@@ -60,7 +54,7 @@ interface State {
   installMarketplacePlugin: (plugin: CatalogPlugin) => Promise<void>
   uninstallMarketplacePlugin: (plugin: CatalogPlugin) => Promise<void>
   buildYourOwn: () => void
-  resumeSession: (sessionId: string, title?: string, projectPath?: string) => Promise<string>
+  resumeSession: (sessionId: string, title?: string, projectPath?: string, backend?: BackendType) => Promise<string>
   addSystemMessage: (content: string) => void
   sendMessage: (prompt: string, projectPath?: string) => void
   respondPermission: (tabId: string, questionId: string, optionId: string) => void
@@ -85,7 +79,7 @@ notificationAudio.volume = 1.0
 async function playNotificationIfHidden(): Promise<void> {
   if (!useThemeStore.getState().soundEnabled) return
   try {
-    const visible = await window.clui.isVisible()
+    const visible = await window.orbiter.isVisible()
     if (!visible) {
       notificationAudio.currentTime = 0
       notificationAudio.play().catch(() => {})
@@ -96,6 +90,7 @@ async function playNotificationIfHidden(): Promise<void> {
 function makeLocalTab(): TabState {
   return {
     id: crypto.randomUUID(),
+    backend: 'claude',
     claudeSessionId: null,
     status: 'idle',
     activeRequestId: null,
@@ -116,6 +111,7 @@ function makeLocalTab(): TabState {
     workingDirectory: '~',
     hasChosenDirectory: false,
     additionalDirs: [],
+    preferredModel: null,
   }
 }
 
@@ -126,8 +122,8 @@ export const useSessionStore = create<State>((set, get) => ({
   activeTabId: initialTab.id,
   isExpanded: false,
   staticInfo: null,
-  preferredModel: null,
   permissionMode: 'ask',
+  codexAvailable: false,
 
   // Marketplace
   marketplaceOpen: false,
@@ -141,7 +137,7 @@ export const useSessionStore = create<State>((set, get) => ({
 
   initStaticInfo: async () => {
     try {
-      const result = await window.clui.start()
+      const result = await window.orbiter.start()
       set({
         staticInfo: {
           version: result.version || 'unknown',
@@ -150,23 +146,43 @@ export const useSessionStore = create<State>((set, get) => ({
           projectPath: result.projectPath || '~',
           homePath: result.homePath || '~',
         },
+        codexAvailable: result.codexAvailable || false,
       })
     } catch {}
   },
 
   setPreferredModel: (model) => {
-    set({ preferredModel: model })
+    set((s) => ({
+      tabs: s.tabs.map((t) =>
+        t.id === s.activeTabId ? { ...t, preferredModel: model } : t
+      ),
+    }))
   },
 
   setPermissionMode: (mode) => {
     set({ permissionMode: mode })
-    window.clui.setPermissionMode(mode)
+    window.orbiter.setPermissionMode(mode)
+  },
+
+  setTabBackend: (backend) => {
+    const { activeTabId, tabs } = get()
+    const tab = tabs.find((t) => t.id === activeTabId)
+    if (tab && tab.messages.length > 0) return // locked after first message
+    window.orbiter.setTabBackend(activeTabId, backend)
+    set((s) => ({
+      tabs: s.tabs.map((t) =>
+        t.id === activeTabId
+          ? { ...t, backend, claudeSessionId: null, sessionModel: null, preferredModel: null }
+          : t
+      ),
+    }))
+    useThemeStore.getState().setActiveBackend(backend)
   },
 
   createTab: async () => {
     const homeDir = get().staticInfo?.homePath || '~'
     try {
-      const { tabId } = await window.clui.createTab()
+      const { tabId } = await window.orbiter.createTab()
       const tab: TabState = {
         ...makeLocalTab(),
         id: tabId,
@@ -176,6 +192,7 @@ export const useSessionStore = create<State>((set, get) => ({
         tabs: [...s.tabs, tab],
         activeTabId: tab.id,
       }))
+      useThemeStore.getState().setActiveBackend(tab.backend)
       return tabId
     } catch {
       const tab = makeLocalTab()
@@ -184,6 +201,7 @@ export const useSessionStore = create<State>((set, get) => ({
         tabs: [...s.tabs, tab],
         activeTabId: tab.id,
       }))
+      useThemeStore.getState().setActiveBackend(tab.backend)
       return tab.id
     }
   },
@@ -210,6 +228,9 @@ export const useSessionStore = create<State>((set, get) => ({
           t.id === tabId ? { ...t, hasUnread: false } : t
         ),
       }))
+      // Sync theme accent to new tab's backend
+      const tab = s.tabs.find((t) => t.id === tabId)
+      if (tab) useThemeStore.getState().setActiveBackend(tab.backend)
     }
   },
 
@@ -244,8 +265,8 @@ export const useSessionStore = create<State>((set, get) => ({
     set({ marketplaceLoading: true, marketplaceError: null })
     try {
       const [catalog, installed] = await Promise.all([
-        window.clui.fetchMarketplace(forceRefresh),
-        window.clui.listInstalledPlugins(),
+        window.orbiter.fetchMarketplace(forceRefresh),
+        window.orbiter.listInstalledPlugins(),
       ])
       if (catalog.error && catalog.plugins.length === 0) {
         set({ marketplaceError: catalog.error, marketplaceLoading: false })
@@ -288,7 +309,7 @@ export const useSessionStore = create<State>((set, get) => ({
     set((s) => ({
       marketplacePluginStates: { ...s.marketplacePluginStates, [plugin.id]: 'installing' },
     }))
-    const result = await window.clui.installPlugin(plugin.repo, plugin.installName, plugin.marketplace, plugin.sourcePath, plugin.isSkillMd)
+    const result = await window.orbiter.installPlugin(plugin.repo, plugin.installName, plugin.marketplace, plugin.sourcePath, plugin.isSkillMd)
     if (result.ok) {
       set((s) => ({
         marketplacePluginStates: { ...s.marketplacePluginStates, [plugin.id]: 'installed' as PluginStatus },
@@ -302,7 +323,7 @@ export const useSessionStore = create<State>((set, get) => ({
   },
 
   uninstallMarketplacePlugin: async (plugin) => {
-    const result = await window.clui.uninstallPlugin(plugin.installName)
+    const result = await window.orbiter.uninstallPlugin(plugin.installName)
     if (result.ok) {
       set((s) => ({
         marketplacePluginStates: { ...s.marketplacePluginStates, [plugin.id]: 'not_installed' as PluginStatus },
@@ -320,7 +341,7 @@ export const useSessionStore = create<State>((set, get) => ({
   },
 
   closeTab: (tabId) => {
-    window.clui.closeTab(tabId).catch(() => {})
+    window.orbiter.closeTab(tabId).catch(() => {})
 
     const s = get()
     const remaining = s.tabs.filter((t) => t.id !== tabId)
@@ -329,11 +350,13 @@ export const useSessionStore = create<State>((set, get) => ({
       if (remaining.length === 0) {
         const newTab = makeLocalTab()
         set({ tabs: [newTab], activeTabId: newTab.id })
+        useThemeStore.getState().setActiveBackend(newTab.backend)
         return
       }
       const closedIndex = s.tabs.findIndex((t) => t.id === tabId)
       const newActive = remaining[Math.min(closedIndex, remaining.length - 1)]
       set({ tabs: remaining, activeTabId: newActive.id })
+      useThemeStore.getState().setActiveBackend(newActive.backend)
     } else {
       set({ tabs: remaining })
     }
@@ -350,13 +373,15 @@ export const useSessionStore = create<State>((set, get) => ({
     }))
   },
 
-  resumeSession: async (sessionId, title, projectPath) => {
+  resumeSession: async (sessionId, title, projectPath, backend = 'claude') => {
     const defaultDir = projectPath || get().staticInfo?.homePath || '~'
     try {
-      const { tabId } = await window.clui.createTab()
+      const { tabId } = await window.orbiter.createTab(backend)
 
-      // Load previous conversation messages from the JSONL file
-      const history = await window.clui.loadSession(sessionId, defaultDir).catch(() => [])
+      // Load previous conversation messages
+      const history = backend === 'codex'
+        ? await window.orbiter.loadCodexSession(sessionId).catch(() => [])
+        : await window.orbiter.loadSession(sessionId, defaultDir).catch(() => [])
       const messages: Message[] = history.map((m) => ({
         id: nextMsgId(),
         role: m.role as Message['role'],
@@ -369,6 +394,7 @@ export const useSessionStore = create<State>((set, get) => ({
       const tab: TabState = {
         ...makeLocalTab(),
         id: tabId,
+        backend,
         claudeSessionId: sessionId,
         title: title || 'Resumed Session',
         workingDirectory: defaultDir,
@@ -380,10 +406,12 @@ export const useSessionStore = create<State>((set, get) => ({
         activeTabId: tab.id,
         isExpanded: true,
       }))
+      useThemeStore.getState().setActiveBackend(backend)
       // Don't call initSession — the first real prompt will use --resume with the sessionId
       return tabId
     } catch {
       const tab = makeLocalTab()
+      tab.backend = backend
       tab.claudeSessionId = sessionId
       tab.title = title || 'Resumed Session'
       tab.workingDirectory = defaultDir
@@ -393,6 +421,7 @@ export const useSessionStore = create<State>((set, get) => ({
         activeTabId: tab.id,
         isExpanded: true,
       }))
+      useThemeStore.getState().setActiveBackend(backend)
       return tab.id
     }
   },
@@ -418,7 +447,7 @@ export const useSessionStore = create<State>((set, get) => ({
 
   respondPermission: (tabId, questionId, optionId) => {
     // Send to backend
-    window.clui.respondPermission(tabId, questionId, optionId).catch(() => {})
+    window.orbiter.respondPermission(tabId, questionId, optionId).catch(() => {})
 
     // Remove answered item from queue; show next tool's activity or clear
     set((s) => ({
@@ -467,7 +496,7 @@ export const useSessionStore = create<State>((set, get) => ({
 
   setBaseDirectory: (dir) => {
     const { activeTabId } = get()
-    window.clui.resetTabSession(activeTabId)
+    window.orbiter.resetTabSession(activeTabId)
     set((s) => ({
       tabs: s.tabs.map((t) =>
         t.id === activeTabId
@@ -582,13 +611,14 @@ export const useSessionStore = create<State>((set, get) => ({
     }))
 
     // Send to backend — ControlPlane will queue if a run is active
-    const { preferredModel } = get()
-    window.clui.prompt(activeTabId, requestId, {
+    const preferredModel = tab.preferredModel
+    window.orbiter.prompt(activeTabId, requestId, {
       prompt: fullPrompt,
       projectPath: resolvedPath,
       sessionId: tab.claudeSessionId || undefined,
       model: preferredModel || undefined,
       addDirs: tab.additionalDirs.length > 0 ? tab.additionalDirs : undefined,
+      backend: tab.backend,
     }).catch((err: Error) => {
       get().handleError(activeTabId, {
         message: err.message,
@@ -612,7 +642,9 @@ export const useSessionStore = create<State>((set, get) => ({
         switch (event.type) {
           case 'session_init':
             updated.claudeSessionId = event.sessionId
-            updated.sessionModel = event.model
+            if (event.model) {
+              updated.sessionModel = event.model
+            }
             updated.sessionTools = event.tools
             updated.sessionMcpServers = event.mcpServers
             updated.sessionSkills = event.skills

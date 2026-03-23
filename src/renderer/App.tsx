@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Paperclip, Camera, HeadCircuit } from '@phosphor-icons/react'
+import { PaperclipIcon, CameraIcon, HeadCircuitIcon } from '@phosphor-icons/react'
 import { TabStrip } from './components/TabStrip'
 import { ConversationView } from './components/ConversationView'
 import { InputBar } from './components/InputBar'
@@ -27,12 +27,12 @@ export default function App() {
   // ─── Theme initialization ───
   useEffect(() => {
     // Get initial OS theme — setSystemTheme respects themeMode (system/light/dark)
-    window.clui.getTheme().then(({ isDark }) => {
+    window.orbiter.getTheme().then(({ isDark }) => {
       setSystemTheme(isDark)
     }).catch(() => {})
 
     // Listen for OS theme changes
-    const unsub = window.clui.onThemeChange((isDark) => {
+    const unsub = window.orbiter.onThemeChange((isDark) => {
       setSystemTheme(isDark)
     })
     return unsub
@@ -47,7 +47,7 @@ export default function App() {
         useSessionStore.setState((s) => ({
           tabs: s.tabs.map((t, i) => (i === 0 ? { ...t, workingDirectory: homeDir, hasChosenDirectory: false } : t)),
         }))
-        window.clui.createTab().then(({ tabId }) => {
+        window.orbiter.createTab().then(({ tabId }) => {
           useSessionStore.setState((s) => ({
             tabs: s.tabs.map((t, i) => (i === 0 ? { ...t, id: tabId } : t)),
             activeTabId: tabId,
@@ -60,23 +60,23 @@ export default function App() {
   // OS-level click-through (RAF-throttled to avoid per-pixel IPC).
   // Disabled on Wayland where setIgnoreMouseEvents is not supported.
   useEffect(() => {
-    if (!window.clui?.setIgnoreMouseEvents) return
+    if (!window.orbiter?.setIgnoreMouseEvents) return
     let cancelled = false
     let lastIgnored: boolean | null = null
 
-    window.clui.getPlatformInfo().then(({ supportsClickThrough }) => {
+    window.orbiter.getPlatformInfo().then(({ supportsClickThrough }) => {
       if (cancelled || !supportsClickThrough) return
 
       const onMouseMove = (e: MouseEvent) => {
         const el = document.elementFromPoint(e.clientX, e.clientY)
-        const isUI = !!(el && el.closest('[data-clui-ui]'))
+        const isUI = !!(el && el.closest('[data-orbiter-ui]'))
         const shouldIgnore = !isUI
         if (shouldIgnore !== lastIgnored) {
           lastIgnored = shouldIgnore
           if (shouldIgnore) {
-            window.clui.setIgnoreMouseEvents(true, { forward: true })
+            window.orbiter.setIgnoreMouseEvents(true, { forward: true })
           } else {
-            window.clui.setIgnoreMouseEvents(false)
+            window.orbiter.setIgnoreMouseEvents(false)
           }
         }
       }
@@ -84,7 +84,7 @@ export default function App() {
       const onMouseLeave = () => {
         if (lastIgnored !== true) {
           lastIgnored = true
-          window.clui.setIgnoreMouseEvents(true, { forward: true })
+          window.orbiter.setIgnoreMouseEvents(true, { forward: true })
         }
       }
 
@@ -92,7 +92,7 @@ export default function App() {
       document.addEventListener('mouseleave', onMouseLeave)
       // Store cleanup in cancelled flag — cleanup runs in effect teardown
       const origCancelled = cancelled
-      Object.defineProperty(window, '__cluiClickThroughCleanup', {
+      Object.defineProperty(window, '__orbiterClickThroughCleanup', {
         value: () => {
           document.removeEventListener('mousemove', onMouseMove)
           document.removeEventListener('mouseleave', onMouseLeave)
@@ -103,7 +103,7 @@ export default function App() {
 
     return () => {
       cancelled = true
-      const cleanup = (window as any).__cluiClickThroughCleanup
+      const cleanup = (window as any).__orbiterClickThroughCleanup
       if (typeof cleanup === 'function') cleanup()
     }
   }, [])
@@ -120,20 +120,20 @@ export default function App() {
   const bodyMaxHeight = expandedUI ? 520 : 400
 
   const handleScreenshot = useCallback(async () => {
-    const result = await window.clui.takeScreenshot()
+    const result = await window.orbiter.takeScreenshot()
     if (!result) return
     addAttachments([result])
   }, [addAttachments])
 
   const handleAttachFile = useCallback(async () => {
-    const files = await window.clui.attachFiles()
+    const files = await window.orbiter.attachFiles()
     if (!files || files.length === 0) return
     addAttachments(files)
   }, [addAttachments])
 
   return (
     <PopoverLayerProvider>
-      <div className="flex flex-col justify-end h-full" style={{ background: 'transparent' }}>
+      <div className="flex flex-col justify-end h-full bg-transparent">
 
         {/* ─── 460px content column, centered. Circles overflow left. ─── */}
         <div style={{ width: contentWidth, position: 'relative', margin: '0 auto', transition: 'width 0.26s cubic-bezier(0.4, 0, 0.1, 1)' }}>
@@ -141,16 +141,8 @@ export default function App() {
           <AnimatePresence initial={false}>
             {marketplaceOpen && (
               <div
-                data-clui-ui
-                style={{
-                  width: 720,
-                  maxWidth: 720,
-                  marginLeft: '50%',
-                  transform: 'translateX(-50%)',
-                  marginBottom: 14,
-                  position: 'relative',
-                  zIndex: 30,
-                }}
+                data-orbiter-ui
+                className="w-[720px] max-w-[720px] ml-[50%] -translate-x-1/2 mb-3.5 relative z-30"
               >
                 <motion.div
                   initial={{ opacity: 0, y: 14, scale: 0.98 }}
@@ -159,12 +151,8 @@ export default function App() {
                   transition={TRANSITION}
                 >
                   <div
-                    data-clui-ui
-                    className="glass-surface overflow-hidden no-drag"
-                    style={{
-                      borderRadius: 24,
-                      maxHeight: 470,
-                    }}
+                    data-orbiter-ui
+                    className="glass-surface overflow-hidden no-drag rounded-3xl max-h-[470px]"
                   >
                     <MarketplacePanel />
                   </div>
@@ -179,7 +167,7 @@ export default function App() {
             panel rendered above it, never inside it.
           */}
           <motion.div
-            data-clui-ui
+            data-orbiter-ui
             className="overflow-hidden flex flex-col drag-region"
             animate={{
               width: isExpanded ? cardExpandedWidth : cardCollapsedWidth,
@@ -223,10 +211,10 @@ export default function App() {
 
           {/* ─── Input row — circles float outside left ─── */}
           {/* marginBottom: shadow buffer so the glass-surface drop shadow isn't clipped at the native window edge */}
-          <div data-clui-ui className="relative" style={{ minHeight: 46, zIndex: 15, marginBottom: 10 }}>
+          <div data-orbiter-ui className="relative min-h-[46px] z-[15] mb-2.5">
             {/* Stacked circle buttons — expand on hover */}
             <div
-              data-clui-ui
+              data-orbiter-ui
               className="circles-out"
             >
               <div className="btn-stack">
@@ -237,7 +225,7 @@ export default function App() {
                   onClick={handleAttachFile}
                   disabled={isRunning}
                 >
-                  <Paperclip size={17} />
+                  <PaperclipIcon size={17} />
                 </button>
                 {/* btn-2: Screenshot (middle) */}
                 <button
@@ -246,7 +234,7 @@ export default function App() {
                   onClick={handleScreenshot}
                   disabled={isRunning}
                 >
-                  <Camera size={17} />
+                  <CameraIcon size={17} />
                 </button>
                 {/* btn-3: Skills (back, leftmost) */}
                 <button
@@ -255,16 +243,15 @@ export default function App() {
                   onClick={() => useSessionStore.getState().toggleMarketplace()}
                   disabled={isRunning}
                 >
-                  <HeadCircuit size={17} />
+                  <HeadCircuitIcon size={17} />
                 </button>
               </div>
             </div>
 
             {/* Input pill */}
             <div
-              data-clui-ui
-              className="glass-surface w-full"
-              style={{ minHeight: 50, borderRadius: 25, padding: '0 6px 0 16px', background: colors.inputPillBg }}
+              data-orbiter-ui
+              className="glass-surface w-full transition-colors bg-input-pill-bg min-h-[50px] rounded-[25px] pl-4 pr-1.5"
             >
               <InputBar />
             </div>

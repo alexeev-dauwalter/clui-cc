@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, MagnifyingGlass, SpinnerGap, ArrowClockwise, HeadCircuit, Compass, GithubLogo } from '@phosphor-icons/react'
+import { XIcon, MagnifyingGlassIcon, SpinnerGapIcon, ArrowClockwiseIcon, HeadCircuitIcon, CompassIcon, GithubLogoIcon } from '@phosphor-icons/react'
 import { useSessionStore } from '../stores/sessionStore'
 import { useColors } from '../theme'
 import type { CatalogPlugin, PluginStatus } from '../../shared/types'
@@ -91,144 +91,72 @@ export function MarketplacePanel() {
 
   return (
     <div
-      data-clui-ui
-      style={{
-        height: 470,
-        display: 'flex',
-        flexDirection: 'column',
-      }}
+      data-orbiter-ui
+      className="h-[470px] flex flex-col"
     >
       {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 18px 10px',
-        borderBottom: `1px solid ${colors.containerBorder}`,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <HeadCircuit size={20} weight="regular" style={{ color: colors.accent }} />
+      <div className="border-b border-container-border flex items-center justify-between px-[18px] pt-4 pb-2.5">
+        <div className="flex items-center gap-2">
+          <HeadCircuitIcon size={20} weight="regular" className="text-accent" />
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: colors.textPrimary }}>
+            <div className="text-text-primary text-[13px] font-bold">
               Skills Marketplace
             </div>
-            <div style={{ fontSize: 11, color: colors.textTertiary, marginTop: 2 }}>
-              Install skills and plugins without leaving CLUI
+            <div className="text-text-tertiary text-[11px] mt-0.5">
+              Install skills and plugins without leaving Orbiter
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 11, color: colors.textTertiary }}>
+        <div className="flex items-center gap-2.5">
+          <span className="text-text-tertiary text-[11px]">
             {filtered.length} result{filtered.length === 1 ? '' : 's'}
           </span>
           <button
             onClick={() => loadMarketplace(true)}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: colors.textTertiary,
-              padding: 2,
-              display: 'flex',
-              borderRadius: 4,
-            }}
+            className="bg-none border-none cursor-pointer text-text-tertiary hover:text-text-primary p-0.5 flex rounded transition-colors"
             title="Refresh marketplace"
-            onMouseEnter={(e) => (e.currentTarget.style.color = colors.textPrimary)}
-            onMouseLeave={(e) => (e.currentTarget.style.color = colors.textTertiary)}
           >
-            <ArrowClockwise size={14} />
+            <ArrowClockwiseIcon size={14} />
           </button>
           <button
             onClick={closeMarketplace}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: colors.textTertiary, padding: 2, display: 'flex',
-              borderRadius: 4,
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = colors.textPrimary)}
-            onMouseLeave={(e) => (e.currentTarget.style.color = colors.textTertiary)}
+            className="bg-none border-none cursor-pointer text-text-tertiary hover:text-text-primary p-0.5 flex rounded transition-colors"
           >
-            <X size={14} />
+            <XIcon size={14} />
           </button>
         </div>
       </div>
 
       {/* Search + Build your own */}
-      <div style={{ padding: '12px 18px 10px', display: 'flex', gap: 8, alignItems: 'center' }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          background: colors.inputPillBg,
-          borderRadius: 12,
-          padding: '9px 12px',
-          border: `1px solid ${colors.containerBorder}`,
-          minWidth: 0,
-          flex: 1,
-        }}>
-          <MagnifyingGlass size={13} style={{ color: colors.textTertiary, flexShrink: 0 }} />
+      <div className="px-[18px] pt-3 pb-2.5 flex gap-2 items-center">
+        <div className="bg-input-pill-bg border border-container-border flex items-center gap-1.5 rounded-xl px-3 py-[9px] min-w-0 flex-1">
+          <MagnifyingGlassIcon size={13} className="text-text-tertiary shrink-0" />
           <input
             type="text"
             placeholder="Search skills, tags, authors..."
             value={localSearch}
             onChange={handleSearchChange}
-            style={{
-              flex: 1, background: 'none', border: 'none', outline: 'none',
-              color: colors.textPrimary, fontSize: 12, fontFamily: 'inherit',
-            }}
+            className="text-text-primary flex-1 bg-transparent border-none outline-none text-[12px] font-[inherit]"
           />
         </div>
         <button
           onClick={buildYourOwn}
-          style={{
-            flexShrink: 0,
-            height: 36,
-            padding: '0 12px',
-            borderRadius: 9999,
-            border: `1px dashed ${colors.accentBorderMedium}`,
-            background: colors.accentLight,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            transition: 'all 0.15s',
-            color: colors.accent,
-            fontSize: 11,
-            fontWeight: 600,
-            fontFamily: 'inherit',
-            whiteSpace: 'nowrap',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = colors.accent }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = colors.accentBorderMedium }}
+          className="shrink-0 h-9 px-3 rounded-full cursor-pointer inline-flex items-center gap-1.5 transition-colors text-accent bg-accent-light text-[11px] font-semibold font-[inherit] whitespace-nowrap hover:border-accent border border-dashed border-accent-border-medium"
         >
-          <Compass size={12} weight="regular" />
+          <CompassIcon size={12} weight="regular" />
           Build your own
         </button>
       </div>
 
       {/* Filter chips */}
-      <div style={{
-        display: 'flex',
-        gap: 8,
-        padding: '0 18px 12px',
-        overflowX: 'auto',
+      <div className="flex gap-2 px-[18px] pb-3 overflow-x-auto" style={{
         scrollbarWidth: 'none',
       }}>
         {filters.map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              padding: '6px 11px',
-              borderRadius: 999,
-              border: `1px solid ${filter === f ? colors.accent : colors.containerBorder}`,
-              background: filter === f ? colors.accentLight : 'transparent',
-              color: filter === f ? colors.accent : colors.textSecondary,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              transition: 'all 0.15s',
-              whiteSpace: 'nowrap',
-            }}
+            className={`transition-all border cursor-pointer text-[11px] font-semibold px-[11px] py-1.5 rounded-full font-[inherit] whitespace-nowrap ${filter === f ? 'text-accent bg-accent-light border-accent' : 'text-text-secondary bg-transparent border-container-border'}`}
           >
             {f}
           </button>
@@ -236,22 +164,15 @@ export function MarketplacePanel() {
       </div>
 
       {/* Body */}
-      <div ref={scrollContainerRef} style={{ flex: 1, overflowY: 'auto', padding: '0 18px', scrollbarWidth: 'thin' }}>
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-[18px]" style={{ scrollbarWidth: 'thin' }}>
         {loading ? (
-          <LoadingState colors={colors} />
+          <LoadingState />
         ) : error ? (
-          <ErrorState error={error} colors={colors} onRetry={() => loadMarketplace(true)} />
+          <ErrorState error={error} onRetry={() => loadMarketplace(true)} />
         ) : filtered.length === 0 ? (
-          <EmptyState colors={colors} />
+          <EmptyState />
         ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 10,
-              paddingBottom: 6,
-            }}
-          >
+          <div className="flex flex-wrap gap-2.5 pb-1.5">
             {displayOrder.map((plugin) => (
               <PluginCard
                 key={plugin.id}
@@ -330,7 +251,7 @@ function PluginCard({ plugin, status, colors, expanded, onToggleExpand, scrollCo
   const handleGithubClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     const url = `https://github.com/${plugin.repo || 'unknown/repo'}/tree/main/${plugin.sourcePath || ''}`
-    window.clui.openExternal(url)
+    window.orbiter.openExternal(url)
   }
 
   // Collapse → clear confirm
@@ -349,20 +270,10 @@ function PluginCard({ plugin, status, colors, expanded, onToggleExpand, scrollCo
   const githubButton = (
     <button
       onClick={handleGithubClick}
-      style={{
-        background: 'none',
-        border: 'none',
-        cursor: 'pointer',
-        color: colors.textTertiary,
-        padding: 2,
-        display: 'flex',
-        borderRadius: 4,
-      }}
+      className="bg-transparent border-none cursor-pointer p-0.5 flex rounded transition-colors text-text-tertiary hover:text-text-primary"
       title="View source on GitHub"
-      onMouseEnter={(e) => (e.currentTarget.style.color = colors.textPrimary)}
-      onMouseLeave={(e) => (e.currentTarget.style.color = colors.textTertiary)}
     >
-      <GithubLogo size={14} />
+      <GithubLogoIcon size={14} />
     </button>
   )
 
@@ -373,14 +284,12 @@ function PluginCard({ plugin, status, colors, expanded, onToggleExpand, scrollCo
       transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
       onLayoutAnimationComplete={handleLayoutComplete}
       onClick={onToggleExpand}
+      className="p-3 rounded-[14px] cursor-pointer"
       style={{
-        padding: '12px',
-        borderRadius: 14,
         border: `1px solid ${expanded ? colors.surfaceSecondary : colors.containerBorder}`,
         background: expanded ? colors.surfaceActive : colors.surfaceHover,
         minHeight: expanded ? undefined : 154,
         width: expanded ? '100%' : 'calc(50% - 5px)',
-        cursor: 'pointer',
       }}
       onMouseEnter={(e) => {
         if (!expanded) {
@@ -399,72 +308,51 @@ function PluginCard({ plugin, status, colors, expanded, onToggleExpand, scrollCo
         /* ── Expanded: full-width single column ── */
         <div>
           {/* Header row: tags + actions */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              <Tag label={safeCategory} colors={colors} emphasis="accent" />
+          <div className="flex items-start justify-between gap-2.5 mb-2">
+            <div className="flex flex-wrap gap-1.5">
+              <Tag label={safeCategory} emphasis="accent" />
               {(plugin.tags || []).map((tag) => (
-                <Tag key={tag} label={tag} colors={colors} />
+                <Tag key={tag} label={tag} />
               ))}
             </div>
-            <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className="shrink-0 flex items-center gap-1.5">
               {githubButton}
-              <StatusButton status={status} colors={colors} onClick={handleInstallClick} onUninstall={(e) => { e.stopPropagation(); uninstallPlugin(plugin) }} />
+              <StatusButton status={status} onClick={handleInstallClick} onUninstall={(e) => { e.stopPropagation(); uninstallPlugin(plugin) }} />
             </div>
           </div>
 
-          <div style={{ fontSize: 13, fontWeight: 600, color: colors.textPrimary }}>
+          <div className="text-text-primary text-[13px] font-semibold">
             {safeName}
           </div>
-          <div style={{
-            fontSize: 11,
-            color: colors.textSecondary,
-            marginTop: 5,
-            lineHeight: 1.5,
-          }}>
+          <div className="text-text-secondary text-[11px] mt-[5px] leading-normal">
             {safeDescription}
           </div>
-          <div style={{ fontSize: 10, color: colors.textTertiary, marginTop: 8 }}>
+          <div className="text-text-tertiary text-[10px] mt-2">
             {safeRepo} · by {safeAuthor} · v{safeVersion}
           </div>
 
           {/* Confirm panel or installing status */}
           {showConfirm && status === 'not_installed' && (
-            <div style={{
-              padding: '10px 12px', borderRadius: 10, marginTop: 10,
-              background: colors.surfacePrimary, border: `1px solid ${colors.containerBorder}`,
-            }}>
-              <div style={{ fontSize: 10, color: colors.textTertiary, marginBottom: 4 }}>
+            <div className="bg-surface-primary border border-container-border px-3 py-2.5 rounded-[10px] mt-2.5">
+              <div className="text-text-tertiary text-[10px] mb-1">
                 {plugin.isSkillMd ? 'Will install to:' : 'Will run:'}
               </div>
-              <div style={{
-                fontSize: 10, fontFamily: 'monospace', color: colors.textSecondary,
-                background: colors.codeBg, padding: '4px 6px', borderRadius: 4,
-                lineHeight: 1.6,
-              }}>
+              <div className="text-text-secondary bg-code-bg text-[10px] font-mono px-1.5 py-1 rounded leading-[1.6]">
                 {plugin.isSkillMd
                   ? <>~/.claude/skills/{plugin.installName}/SKILL.md</>
                   : <>claude plugin install {plugin.installName}@{safeMarketplace}</>
                 }
               </div>
-              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              <div className="flex gap-1.5 mt-2">
                 <button
                   onClick={handleConfirm}
-                  style={{
-                    fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
-                    background: colors.accent, color: colors.textOnAccent, border: 'none',
-                    cursor: 'pointer', fontFamily: 'inherit',
-                  }}
+                  className="bg-accent text-text-on-accent text-[10px] font-semibold px-2.5 py-1 rounded-md border-none cursor-pointer font-[inherit]"
                 >
                   Confirm Install
                 </button>
                 <button
                   onClick={handleCancel}
-                  style={{
-                    fontSize: 10, fontWeight: 500, padding: '4px 10px', borderRadius: 6,
-                    background: 'transparent', color: colors.textSecondary,
-                    border: `1px solid ${colors.containerBorder}`,
-                    cursor: 'pointer', fontFamily: 'inherit',
-                  }}
+                  className="text-text-secondary border border-container-border text-[10px] font-medium px-2.5 py-1 rounded-md bg-transparent cursor-pointer font-[inherit]"
                 >
                   Cancel
                 </button>
@@ -473,54 +361,41 @@ function PluginCard({ plugin, status, colors, expanded, onToggleExpand, scrollCo
           )}
 
           {status === 'installing' && (
-            <div style={{
-              padding: '10px 12px', borderRadius: 10, marginTop: 10,
-              background: colors.surfacePrimary, border: `1px solid ${colors.containerBorder}`,
-              display: 'flex', alignItems: 'center', gap: 8,
-            }}>
+            <div className="bg-surface-primary border border-container-border px-3 py-2.5 rounded-[10px] mt-2.5 flex items-center gap-2">
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                style={{ display: 'flex' }}
+                className="flex"
               >
-                <SpinnerGap size={14} style={{ color: colors.accent }} />
+                <SpinnerGapIcon size={14} className="text-accent" />
               </motion.div>
-              <span style={{ fontSize: 11, color: colors.textSecondary }}>Installing plugin...</span>
+              <span className="text-text-secondary text-[11px]">Installing plugin...</span>
             </div>
           )}
         </div>
       ) : (
         /* ── Collapsed: original layout ── */
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-              <Tag label={safeCategory} colors={colors} emphasis="accent" />
+        <div className="flex items-start justify-between gap-2.5">
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              <Tag label={safeCategory} emphasis="accent" />
               {(plugin.tags || []).slice(0, 2).map((tag) => (
-                <Tag key={tag} label={tag} colors={colors} />
+                <Tag key={tag} label={tag} />
               ))}
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: colors.textPrimary }}>
+            <div className="text-text-primary text-[13px] font-semibold">
               {safeName}
             </div>
-            <div style={{
-              fontSize: 11,
-              color: colors.textSecondary,
-              marginTop: 5,
-              lineHeight: 1.45,
-              display: '-webkit-box',
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}>
+            <div className="text-text-secondary text-[11px] mt-[5px] leading-[1.45] line-clamp-3">
               {safeDescription}
             </div>
-            <div style={{ fontSize: 10, color: colors.textTertiary, marginTop: 8 }}>
+            <div className="text-text-tertiary text-[10px] mt-2">
               {safeRepo} · by {safeAuthor} · v{safeVersion}
             </div>
           </div>
-          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className="shrink-0 flex items-center gap-1.5">
             {githubButton}
-            <StatusButton status={status} colors={colors} onClick={handleInstallClick} onUninstall={(e) => { e.stopPropagation(); uninstallPlugin(plugin) }} />
+            <StatusButton status={status} onClick={handleInstallClick} onUninstall={(e) => { e.stopPropagation(); uninstallPlugin(plugin) }} />
           </div>
         </div>
       )}
@@ -530,9 +405,8 @@ function PluginCard({ plugin, status, colors, expanded, onToggleExpand, scrollCo
 
 // ─── StatusButton ───
 
-function StatusButton({ status, colors, onClick, onUninstall }: {
+function StatusButton({ status, onClick, onUninstall }: {
   status: PluginStatus
-  colors: ReturnType<typeof useColors>
   onClick: (e: React.MouseEvent) => void
   onUninstall?: (e: React.MouseEvent) => void
 }) {
@@ -544,32 +418,20 @@ function StatusButton({ status, colors, onClick, onUninstall }: {
           onClick={onUninstall}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
-          style={{
-            fontSize: 10, fontWeight: 500, padding: '2px 8px', borderRadius: 8,
-            background: hovered ? colors.statusErrorBg : colors.statusCompleteBg,
-            color: hovered ? colors.statusError : colors.statusComplete,
-            whiteSpace: 'nowrap',
-            border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-            transition: 'all 0.15s',
-          }}
+          className={`transition-all text-[10px] font-medium px-2 py-0.5 rounded-lg whitespace-nowrap border-none cursor-pointer font-[inherit] ${hovered ? 'bg-status-error-bg text-status-error' : 'bg-status-complete-bg text-status-complete'}`}
         >
           {hovered ? 'Uninstall' : 'Installed'}
         </button>
       )
     case 'installing':
       return (
-        <span style={{
-          fontSize: 10, fontWeight: 500, padding: '2px 8px', borderRadius: 8,
-          background: colors.accentLight, color: colors.accent,
-          display: 'flex', alignItems: 'center', gap: 4,
-          whiteSpace: 'nowrap',
-        }}>
+        <span className="bg-accent-light text-accent text-[10px] font-medium px-2 py-0.5 rounded-lg flex items-center gap-1 whitespace-nowrap">
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-            style={{ display: 'flex' }}
+            className="flex"
           >
-            <SpinnerGap size={10} />
+            <SpinnerGapIcon size={10} />
           </motion.div>
           Installing...
         </span>
@@ -578,12 +440,7 @@ function StatusButton({ status, colors, onClick, onUninstall }: {
       return (
         <button
           onClick={onClick}
-          style={{
-            fontSize: 10, fontWeight: 500, padding: '2px 8px', borderRadius: 8,
-            background: colors.statusErrorBg, color: colors.statusError,
-            border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-            whiteSpace: 'nowrap',
-          }}
+          className="bg-status-error-bg text-status-error text-[10px] font-medium px-2 py-0.5 rounded-lg border-none cursor-pointer font-[inherit] whitespace-nowrap"
         >
           Failed — Retry
         </button>
@@ -592,16 +449,7 @@ function StatusButton({ status, colors, onClick, onUninstall }: {
       return (
         <button
           onClick={onClick}
-          style={{
-            fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 8,
-            background: colors.accentLight, color: colors.accent,
-            border: `1px solid ${colors.accentBorder}`,
-            cursor: 'pointer', fontFamily: 'inherit',
-            transition: 'all 0.15s',
-            whiteSpace: 'nowrap',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = colors.accentSoft)}
-          onMouseLeave={(e) => (e.currentTarget.style.background = colors.accentLight)}
+          className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-accent-light text-accent cursor-pointer font-[inherit] whitespace-nowrap transition-colors hover:bg-accent-soft border border-accent-border"
         >
           Install
         </button>
@@ -609,25 +457,14 @@ function StatusButton({ status, colors, onClick, onUninstall }: {
   }
 }
 
-function Tag({ label, colors, emphasis }: {
+function Tag({ label, emphasis }: {
   label: string
-  colors: ReturnType<typeof useColors>
   emphasis?: 'accent'
 }) {
   const isAccent = emphasis === 'accent'
   return (
     <span
-      style={{
-        fontSize: 10,
-        fontWeight: 600,
-        lineHeight: 1,
-        padding: '5px 8px',
-        borderRadius: 999,
-        whiteSpace: 'nowrap',
-        border: `1px solid ${isAccent ? colors.accentBorderMedium : colors.containerBorder}`,
-        background: isAccent ? colors.accentLight : colors.surfacePrimary,
-        color: isAccent ? colors.accent : colors.textSecondary,
-      }}
+      className={`border text-[10px] font-semibold leading-none px-2 py-[5px] rounded-full whitespace-nowrap ${isAccent ? 'bg-accent-light text-accent border-accent-border-medium' : 'bg-surface-primary text-text-secondary border-container-border'}`}
     >
       {label}
     </span>
@@ -636,26 +473,20 @@ function Tag({ label, colors, emphasis }: {
 
 // ─── States ───
 
-function LoadingState({ colors }: { colors: ReturnType<typeof useColors> }) {
+function LoadingState() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 0' }}>
+    <div className="flex flex-col gap-1.5 py-1">
       {[0, 1, 2].map((i) => (
-        <div key={i} style={{ padding: '8px 10px' }}>
+        <div key={i} className="px-2.5 py-2">
           <motion.div
             animate={{ opacity: [0.3, 0.6, 0.3] }}
             transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.15 }}
-            style={{
-              height: 12, width: '60%', borderRadius: 4,
-              background: colors.surfacePrimary, marginBottom: 4,
-            }}
+            className="bg-surface-primary h-3 w-[60%] rounded mb-1"
           />
           <motion.div
             animate={{ opacity: [0.3, 0.6, 0.3] }}
             transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.15 + 0.1 }}
-            style={{
-              height: 10, width: '90%', borderRadius: 4,
-              background: colors.surfacePrimary,
-            }}
+            className="bg-surface-primary h-2.5 w-[90%] rounded"
           />
         </div>
       ))}
@@ -663,38 +494,28 @@ function LoadingState({ colors }: { colors: ReturnType<typeof useColors> }) {
   )
 }
 
-function ErrorState({ error, colors, onRetry }: {
+function ErrorState({ error, onRetry }: {
   error: string
-  colors: ReturnType<typeof useColors>
   onRetry: () => void
 }) {
   return (
-    <div style={{ padding: '20px 10px', textAlign: 'center' }}>
-      <div style={{ fontSize: 11, color: colors.statusError, marginBottom: 8 }}>
+    <div className="px-2.5 py-5 text-center">
+      <div className="text-status-error text-[11px] mb-2">
         {error.length > 100 ? error.substring(0, 100) + '...' : error}
       </div>
       <button
         onClick={onRetry}
-        style={{
-          fontSize: 10, fontWeight: 600, padding: '4px 12px', borderRadius: 6,
-          background: colors.accentLight, color: colors.accent,
-          border: `1px solid ${colors.accentBorder}`,
-          cursor: 'pointer', fontFamily: 'inherit',
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-        }}
+        className="bg-accent-light text-accent border border-accent-border text-[10px] font-semibold px-3 py-1 rounded-md cursor-pointer font-[inherit] inline-flex items-center gap-1"
       >
-        <ArrowClockwise size={11} /> Retry
+        <ArrowClockwiseIcon size={11} /> Retry
       </button>
     </div>
   )
 }
 
-function EmptyState({ colors }: { colors: ReturnType<typeof useColors> }) {
+function EmptyState() {
   return (
-    <div style={{
-      padding: '24px 10px', textAlign: 'center',
-      fontSize: 11, color: colors.textTertiary,
-    }}>
+    <div className="text-text-tertiary px-2.5 py-6 text-center text-[11px]">
       No plugins match your search
     </div>
   )

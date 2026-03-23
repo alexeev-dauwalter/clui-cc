@@ -9,7 +9,7 @@ import { fetchCatalog, listInstalled, installPlugin, uninstallPlugin } from './m
 import { log as _log, LOG_FILE, flushLogs } from './logger'
 import { getCliEnv } from './cli-env'
 import { IPC } from '../shared/types'
-import type { RunOptions, NormalizedEvent, EnrichedError } from '../shared/types'
+import type { BackendType, RunOptions, NormalizedEvent, EnrichedError } from '../shared/types'
 
 // Enable native Wayland rendering when available (sharp text on HiDPI).
 // Must be set before app is ready.
@@ -17,8 +17,8 @@ if (process.platform === 'linux') {
   app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
 }
 
-const DEBUG_MODE = process.env.CLUI_DEBUG === '1'
-const SPACES_DEBUG = DEBUG_MODE || process.env.CLUI_SPACES_DEBUG === '1'
+const DEBUG_MODE = process.env.ORBITER_DEBUG === '1'
+const SPACES_DEBUG = DEBUG_MODE || process.env.ORBITER_SPACES_DEBUG === '1'
 
 function log(msg: string): void {
   _log('main', msg)
@@ -30,7 +30,7 @@ let screenshotCounter = 0
 let toggleSequence = 0
 
 // Feature flag: enable PTY interactive permissions transport
-const INTERACTIVE_PTY = process.env.CLUI_INTERACTIVE_PERMISSIONS_PTY === '1'
+const INTERACTIVE_PTY = process.env.ORBITER_INTERACTIVE_PERMISSIONS_PTY === '1'
 
 const controlPlane = new ControlPlane(INTERACTIVE_PTY)
 
@@ -105,15 +105,15 @@ function scheduleToggleSnapshots(toggleId: number, phase: 'show' | 'hide'): void
 // ─── Wire ControlPlane events → renderer ───
 
 controlPlane.on('event', (tabId: string, event: NormalizedEvent) => {
-  broadcast('clui:normalized-event', tabId, event)
+  broadcast('orbiter:normalized-event', tabId, event)
 })
 
 controlPlane.on('tab-status-change', (tabId: string, newStatus: string, oldStatus: string) => {
-  broadcast('clui:tab-status-change', tabId, newStatus, oldStatus)
+  broadcast('orbiter:tab-status-change', tabId, newStatus, oldStatus)
 })
 
 controlPlane.on('error', (tabId: string, error: EnrichedError) => {
-  broadcast('clui:enriched-error', tabId, error)
+  broadcast('orbiter:enriched-error', tabId, error)
 })
 
 // ─── Window Creation ───
@@ -305,12 +305,19 @@ ipcMain.handle(IPC.START, async () => {
     if (raw) mcpServers = raw.split('\n').filter(Boolean)
   } catch {}
 
-  return { version, auth, mcpServers, projectPath: process.cwd(), homePath: require('os').homedir() }
+  let codexAvailable = false
+  try {
+    execSync('codex --version', { encoding: 'utf-8', timeout: 5000, env: getCliEnv() })
+    codexAvailable = true
+  } catch {}
+
+  return { version, auth, mcpServers, projectPath: process.cwd(), homePath: require('os').homedir(), codexAvailable }
 })
 
-ipcMain.handle(IPC.CREATE_TAB, () => {
-  const tabId = controlPlane.createTab()
-  log(`IPC CREATE_TAB → ${tabId}`)
+ipcMain.handle(IPC.CREATE_TAB, (_event, arg?: { backend?: BackendType }) => {
+  const backend = arg?.backend || 'claude'
+  const tabId = controlPlane.createTab(backend)
+  log(`IPC CREATE_TAB → ${tabId} (backend=${backend})`)
   return { tabId }
 })
 
@@ -382,6 +389,25 @@ ipcMain.on(IPC.SET_PERMISSION_MODE, (_event, mode: string) => {
   }
   log(`IPC SET_PERMISSION_MODE: ${mode}`)
   controlPlane.setPermissionMode(mode)
+})
+
+// ─── Backend switching IPC ───
+
+ipcMain.on(IPC.SET_TAB_BACKEND, (_event, { tabId, backend }: { tabId: string; backend: BackendType }) => {
+  log(`IPC SET_TAB_BACKEND: tab=${tabId} backend=${backend}`)
+  controlPlane.setTabBackend(tabId, backend)
+})
+
+ipcMain.handle(IPC.CHECK_BACKEND, async (_event, backend: string) => {
+  log(`IPC CHECK_BACKEND: ${backend}`)
+  try {
+    const { execSync: exec } = require('child_process')
+    const cmd = backend === 'codex' ? 'codex --version' : 'claude -v'
+    const version = exec(cmd, { encoding: 'utf-8', timeout: 5000, env: getCliEnv() }).trim()
+    return { available: true, version }
+  } catch {
+    return { available: false }
+  }
 })
 
 ipcMain.handle(IPC.RESPOND_PERMISSION, (_event, { tabId, questionId, optionId }: { tabId: string; questionId: string; optionId: string }) => {
@@ -527,11 +553,121 @@ ipcMain.handle(IPC.LOAD_SESSION, async (_e, arg: { sessionId: string; projectPat
   }
 })
 
+// ─── Codex Session History ───
+
+ipcMain.handle(IPC.LIST_CODEX_SESSIONS, async (_e, projectPath?: string) => {
+  log(`IPC LIST_CODEX_SESSIONS ${projectPath ? `(path=${projectPath})` : ''}`)
+  try {
+    const sessionsRoot = join(homedir(), '.codex', 'sessions')
+    if (!existsSync(sessionsRoot)) return []
+
+    const files: string[] = []
+    // Recursively find all .jsonl files in YYYY/MM/DD structure
+    const walkDir = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        const full = join(dir, entry)
+        try {
+          const st = statSync(full)
+          if (st.isDirectory()) walkDir(full)
+          else if (entry.endsWith('.jsonl') && st.size > 100) files.push(full)
+        } catch {}
+      }
+    }
+    walkDir(sessionsRoot)
+
+    const results: import('../shared/types').SessionMeta[] = []
+    for (const file of files) {
+      try {
+        const rl = createInterface({ input: createReadStream(file, 'utf-8'), crlfDelay: Infinity })
+        let meta: any = null
+        let firstUserMsg: string | null = null
+        for await (const line of rl) {
+          if (!line.trim()) continue
+          try {
+            const obj = JSON.parse(line)
+            if (obj.type === 'session_meta' && obj.payload) {
+              meta = obj.payload
+            }
+            if (!firstUserMsg && obj.type === 'event_msg' && obj.payload?.type === 'user_message') {
+              const content = obj.payload?.message?.content || ''
+              firstUserMsg = typeof content === 'string' ? content.substring(0, 200) : ''
+            }
+            if (meta && firstUserMsg) break
+          } catch {}
+        }
+        if (!meta?.id) continue
+        // Filter by project path if requested
+        if (projectPath && meta.cwd && meta.cwd !== projectPath) continue
+        results.push({
+          sessionId: meta.id,
+          slug: null,
+          firstMessage: firstUserMsg,
+          lastTimestamp: meta.timestamp || '',
+          size: statSync(file).size,
+        })
+      } catch {}
+    }
+    // Sort by newest first
+    results.sort((a, b) => b.lastTimestamp.localeCompare(a.lastTimestamp))
+    return results.slice(0, 20)
+  } catch (err) {
+    log(`LIST_CODEX_SESSIONS error: ${err}`)
+    return []
+  }
+})
+
+ipcMain.handle(IPC.LOAD_CODEX_SESSION, async (_e, sessionId: string) => {
+  log(`IPC LOAD_CODEX_SESSION: ${sessionId}`)
+  try {
+    const sessionsRoot = join(homedir(), '.codex', 'sessions')
+    // Find file matching this session ID
+    let targetFile: string | null = null
+    const walkDir = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        const full = join(dir, entry)
+        try {
+          const st = statSync(full)
+          if (st.isDirectory()) walkDir(full)
+          else if (entry.includes(sessionId)) { targetFile = full; return }
+        } catch {}
+      }
+    }
+    walkDir(sessionsRoot)
+    if (!targetFile) return []
+
+    const messages: import('../shared/types').SessionLoadMessage[] = []
+    const rl = createInterface({ input: createReadStream(targetFile!, 'utf-8'), crlfDelay: Infinity })
+    for await (const line of rl) {
+      if (!line.trim()) continue
+      try {
+        const obj = JSON.parse(line)
+        const ts = obj.timestamp ? new Date(obj.timestamp).getTime() : Date.now()
+        if (obj.type === 'event_msg' && obj.payload) {
+          const p = obj.payload
+          if (p.type === 'user_message') {
+            const msg = p.message
+            const content = typeof msg === 'string' ? msg : (msg?.content || '')
+            messages.push({ role: 'user', content, timestamp: ts })
+          } else if (p.type === 'agent_message') {
+            const msg = p.message
+            const content = typeof msg === 'string' ? msg : (msg?.content || '')
+            messages.push({ role: 'assistant', content, timestamp: ts })
+          }
+        }
+      } catch {}
+    }
+    return messages
+  } catch (err) {
+    log(`LOAD_CODEX_SESSION error: ${err}`)
+    return []
+  }
+})
+
 ipcMain.handle(IPC.SELECT_DIRECTORY, async () => {
   if (!mainWindow) return null
   // macOS: activate app so unparented dialog appears on top (not behind other apps).
   // Unparented avoids modal dimming on the transparent overlay.
-  // Activation is fine here — user is actively interacting with CLUI.
+  // Activation is fine here — user is actively interacting with Orbiter.
   if (process.platform === 'darwin') app.focus()
   const options = { properties: ['openDirectory'] as const }
   const result = process.platform === 'darwin'
@@ -619,7 +755,7 @@ ipcMain.handle(IPC.TAKE_SCREENSHOT, async () => {
     const { readFileSync, existsSync } = require('fs')
 
     const timestamp = Date.now()
-    const screenshotPath = join(tmpdir(), `clui-screenshot-${timestamp}.png`)
+    const screenshotPath = join(tmpdir(), `orbiter-screenshot-${timestamp}.png`)
 
     if (process.platform === 'darwin') {
       execSync(`/usr/sbin/screencapture -i "${screenshotPath}"`, {
@@ -779,7 +915,7 @@ ipcMain.handle(IPC.PASTE_IMAGE, async (_event, dataUrl: string) => {
     const [, mimeType, ext, base64Data] = match
     const buf = Buffer.from(base64Data, 'base64')
     const timestamp = Date.now()
-    const filePath = join(tmpdir(), `clui-paste-${timestamp}.${ext}`)
+    const filePath = join(tmpdir(), `orbiter-paste-${timestamp}.${ext}`)
     writeFileSync(filePath, buf)
 
     return {
@@ -802,7 +938,7 @@ ipcMain.handle(IPC.TRANSCRIBE_AUDIO, async (_event, audioBase64: string) => {
   const { join } = require('path')
   const { tmpdir } = require('os')
 
-  const tmpWav = join(tmpdir(), `clui-voice-${Date.now()}.wav`)
+  const tmpWav = join(tmpdir(), `orbiter-voice-${Date.now()}.wav`)
   try {
     const buf = Buffer.from(audioBase64, 'base64')
     writeFileSync(tmpWav, buf)
@@ -966,34 +1102,35 @@ ipcMain.handle(IPC.GET_DIAGNOSTICS, () => {
   }
 })
 
-ipcMain.handle(IPC.OPEN_IN_TERMINAL, (_event, arg: string | null | { sessionId?: string | null; projectPath?: string }) => {
+ipcMain.handle(IPC.OPEN_IN_TERMINAL, (_event, arg: string | null | { sessionId?: string | null; projectPath?: string; backend?: BackendType }) => {
   const { execFile } = require('child_process')
-  const claudeBin = 'claude'
 
-  // Support both old (string) and new ({ sessionId, projectPath }) calling convention
+  // Support both old (string) and new ({ sessionId, projectPath, backend }) calling convention
   let sessionId: string | null = null
   let projectPath: string = process.cwd()
+  let cliBin = 'claude'
   if (typeof arg === 'string') {
     sessionId = arg
   } else if (arg && typeof arg === 'object') {
     sessionId = arg.sessionId ?? null
     projectPath = arg.projectPath && arg.projectPath !== '~' ? arg.projectPath : process.cwd()
+    if (arg.backend === 'codex') cliBin = 'codex'
   }
 
   let cmd: string
-  if (sessionId) {
-    cmd = `cd "${projectPath}" && ${claudeBin} --resume ${sessionId}`
+  if (sessionId && cliBin === 'claude') {
+    cmd = `cd "${projectPath}" && ${cliBin} --resume ${sessionId}`
   } else {
-    cmd = `cd "${projectPath}" && ${claudeBin}`
+    cmd = `cd "${projectPath}" && ${cliBin}`
   }
 
   try {
     if (process.platform === 'darwin') {
       // macOS: AppleScript to open Terminal.app
       const projectDir = projectPath.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-      const appleCmd = sessionId
-        ? `cd \\"${projectDir}\\" && ${claudeBin} --resume ${sessionId}`
-        : `cd \\"${projectDir}\\" && ${claudeBin}`
+      const appleCmd = (sessionId && cliBin === 'claude')
+        ? `cd \\"${projectDir}\\" && ${cliBin} --resume ${sessionId}`
+        : `cd \\"${projectDir}\\" && ${cliBin}`
       const script = `tell application "Terminal"\n  activate\n  do script "${appleCmd}"\nend tell`
       execFile('/usr/bin/osascript', ['-e', script], (err: Error | null) => {
         if (err) log(`Failed to open terminal: ${err.message}`)
@@ -1173,11 +1310,11 @@ app.whenReady().then(async () => {
     trayIcon.setTemplateImage(true)
   }
   tray = new Tray(trayIcon)
-  tray.setToolTip('Clui CC — Claude Code UI')
+  tray.setToolTip('Orbiter')
   tray.on('click', () => toggleWindow('tray click'))
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: 'Show Clui CC', click: () => showWindow('tray menu') },
+      { label: 'Show Orbiter', click: () => showWindow('tray menu') },
       { label: 'Quit', click: () => { app.quit() } },
     ])
   )

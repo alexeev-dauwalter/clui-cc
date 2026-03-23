@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import { DotsThree, Bell, ArrowsOutSimple, Moon } from '@phosphor-icons/react'
+import { DotsThreeIcon, BellIcon, ArrowsOutSimpleIcon, MoonIcon } from '@phosphor-icons/react'
 import { useThemeStore } from '../theme'
 import { useSessionStore } from '../stores/sessionStore'
 import { usePopoverLayer } from './PopoverLayer'
@@ -31,11 +31,8 @@ function RowToggle({
       }}
     >
       <span
-        className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full transition-all"
-        style={{
-          left: checked ? 18 : 2,
-          background: '#fff',
-        }}
+        className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full transition-all bg-text-on-accent"
+        style={{ left: checked ? 18 : 2 }}
       />
     </button>
   )
@@ -130,36 +127,27 @@ export function SettingsPopover() {
       <button
         ref={triggerRef}
         onClick={handleToggle}
-        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-colors cursor-pointer"
-        style={{ color: colors.textTertiary }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = colors.textPrimary }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = colors.textTertiary }}
+        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-colors cursor-pointer text-text-tertiary hover:text-text-primary"
         title="Settings"
       >
-        <DotsThree size={16} weight="bold" />
+        <DotsThreeIcon size={16} weight="bold" />
       </button>
 
       {popoverLayer && open && createPortal(
         <motion.div
           ref={popoverRef}
-          data-clui-ui
+          data-orbiter-ui
           initial={{ opacity: 0, y: isExpanded ? -4 : 4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: isExpanded ? -4 : 4 }}
           transition={{ duration: 0.12 }}
-          className="rounded-xl"
+          className="rounded-xl bg-popover-bg border border-popover-border fixed w-[240px] pointer-events-auto backdrop-blur-[20px]"
           style={{
-            position: 'fixed',
             ...(pos.top != null ? { top: pos.top } : {}),
             ...(pos.bottom != null ? { bottom: pos.bottom } : {}),
             right: pos.right,
-            width: 240,
-            pointerEvents: 'auto',
-            background: colors.popoverBg,
-            backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             boxShadow: colors.popoverShadow,
-            border: `1px solid ${colors.popoverBorder}`,
             ...(pos.maxHeight != null ? { maxHeight: pos.maxHeight, overflowY: 'auto' as const } : {}),
           }}
         >
@@ -168,8 +156,8 @@ export function SettingsPopover() {
             <div>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
-                  <ArrowsOutSimple size={14} style={{ color: colors.textTertiary }} />
-                  <div className="text-[12px] font-medium" style={{ color: colors.textPrimary }}>
+                  <ArrowsOutSimpleIcon size={14} className="text-text-tertiary" />
+                  <div className="text-[12px] font-medium text-text-primary">
                     Full width
                   </div>
                 </div>
@@ -184,14 +172,14 @@ export function SettingsPopover() {
               </div>
             </div>
 
-            <div style={{ height: 1, background: colors.popoverBorder }} />
+            <div className="h-px bg-popover-border" />
 
             {/* Notification sound */}
             <div>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
-                  <Bell size={14} style={{ color: colors.textTertiary }} />
-                  <div className="text-[12px] font-medium" style={{ color: colors.textPrimary }}>
+                  <BellIcon size={14} className="text-text-tertiary" />
+                  <div className="text-[12px] font-medium text-text-primary">
                     Notification sound
                   </div>
                 </div>
@@ -204,14 +192,14 @@ export function SettingsPopover() {
               </div>
             </div>
 
-            <div style={{ height: 1, background: colors.popoverBorder }} />
+            <div className="h-px bg-popover-border" />
 
             {/* Theme */}
             <div>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
-                  <Moon size={14} style={{ color: colors.textTertiary }} />
-                  <div className="text-[12px] font-medium" style={{ color: colors.textPrimary }}>
+                  <MoonIcon size={14} className="text-text-tertiary" />
+                  <div className="text-[12px] font-medium text-text-primary">
                     Dark theme
                   </div>
                 </div>

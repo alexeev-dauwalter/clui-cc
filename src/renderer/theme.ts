@@ -1,8 +1,9 @@
 /**
- * CLUI Design Tokens — Dual theme (dark + light)
+ * Orbiter Design Tokens — Dual theme (dark + light) × backend accent (claude + codex)
  * Colors derived from ChatCN oklch system and design-fixed.html reference.
  */
 import { create } from 'zustand'
+import type { BackendType } from '../shared/types'
 
 // ─── Color palettes ───
 
@@ -266,7 +267,171 @@ const lightColors = {
   permissionDeniedHeaderBorder: 'rgba(196, 112, 96, 0.12)',
 } as const
 
+// ─── Codex overrides (neutral monochrome palette) ───
+
+const codexOverrideDark: Partial<typeof darkColors> = {
+  // Backgrounds
+  containerBg: '#212121',
+  containerBgCollapsed: '#171717',
+  containerShadow: '0 8px 28px rgba(0, 0, 0, 0.4), 0 1px 6px rgba(0, 0, 0, 0.3)',
+  cardShadow: '0 2px 8px rgba(0,0,0,0.4)',
+  cardShadowCollapsed: '0 2px 6px rgba(0,0,0,0.45)',
+  popoverBg: '#1e1e1e',
+  codeBg: '#151515',
+  inputPillBg: '#1e1e1e',
+
+  // Surfaces
+  surfacePrimary: '#2f2f2f',
+  surfaceSecondary: '#3a3a3a',
+  surfaceHover: 'rgba(255, 255, 255, 0.06)',
+  surfaceActive: 'rgba(255, 255, 255, 0.09)',
+  tabActive: '#2f2f2f',
+  tabActiveBorder: '#444444',
+  tabHover: 'rgba(255, 255, 255, 0.06)',
+  userBubble: '#2f2f2f',
+  userBubbleBorder: '#444444',
+  toolBg: '#2f2f2f',
+  toolBorder: '#444444',
+  micBg: '#2f2f2f',
+  btnHoverBg: '#2a2a2a',
+  timelineLine: '#2f2f2f',
+  textMuted: '#2f2f2f',
+
+  // Borders
+  containerBorder: '#3e3e3e',
+  inputBorder: '#3e3e3e',
+  popoverBorder: '#3e3e3e',
+
+  // Text
+  textPrimary: '#e0e0e0',
+  textSecondary: '#909090',
+  textTertiary: '#6b6b6b',
+  userBubbleText: '#e0e0e0',
+  btnHoverColor: '#909090',
+  placeholder: '#5a5a5a',
+
+  // Accent — green
+  accent: '#10a37f',
+  accentLight: 'rgba(16, 163, 127, 0.1)',
+  accentSoft: 'rgba(16, 163, 127, 0.15)',
+  accentBorder: 'rgba(16, 163, 127, 0.19)',
+  accentBorderMedium: 'rgba(16, 163, 127, 0.25)',
+  inputFocusBorder: 'rgba(16, 163, 127, 0.4)',
+  textOnAccent: '#ffffff',
+
+  // Status
+  statusRunning: '#10a37f',
+  statusRunningBg: 'rgba(16, 163, 127, 0.1)',
+  statusPermission: '#10a37f',
+  statusPermissionGlow: 'rgba(16, 163, 127, 0.3)',
+
+  // Tool running
+  toolRunningBorder: 'rgba(16, 163, 127, 0.2)',
+  toolRunningBg: 'rgba(16, 163, 127, 0.04)',
+
+  // Timeline
+  timelineNode: 'rgba(16, 163, 127, 0.15)',
+  timelineNodeActive: '#10a37f',
+
+  // Send button
+  sendBg: '#10a37f',
+  sendHover: '#0d8a6a',
+  sendDisabled: 'rgba(16, 163, 127, 0.25)',
+
+  // Scrollbar
+  scrollThumb: 'rgba(255, 255, 255, 0.12)',
+  scrollThumbHover: 'rgba(255, 255, 255, 0.22)',
+}
+
+const codexOverrideLight: Partial<typeof lightColors> = {
+  // Backgrounds
+  containerBg: '#ffffff',
+  containerBgCollapsed: '#f0f0f0',
+  containerShadow: '0 8px 28px rgba(0, 0, 0, 0.06), 0 1px 6px rgba(0, 0, 0, 0.03)',
+  cardShadow: '0 2px 8px rgba(0,0,0,0.05)',
+  cardShadowCollapsed: '0 2px 6px rgba(0,0,0,0.06)',
+  popoverBg: '#ffffff',
+  codeBg: '#f0f0f0',
+  inputPillBg: '#ffffff',
+
+  // Surfaces
+  surfacePrimary: '#eaeaea',
+  surfaceSecondary: '#d8d8d8',
+  surfaceHover: 'rgba(0, 0, 0, 0.04)',
+  surfaceActive: 'rgba(0, 0, 0, 0.07)',
+  tabActive: '#eaeaea',
+  tabActiveBorder: '#d0d0d0',
+  tabHover: 'rgba(0, 0, 0, 0.04)',
+  userBubble: '#eaeaea',
+  userBubbleBorder: '#d0d0d0',
+  toolBg: '#eaeaea',
+  toolBorder: '#d0d0d0',
+  micBg: '#eaeaea',
+  btnHoverBg: '#eaeaea',
+  timelineLine: '#d8d8d8',
+  textMuted: '#d8d8d8',
+
+  // Borders
+  containerBorder: '#e0e0e0',
+  inputBorder: '#e0e0e0',
+  popoverBorder: '#e0e0e0',
+
+  // Text
+  textPrimary: '#1a1a1a',
+  textSecondary: '#808080',
+  textTertiary: '#a0a0a0',
+  userBubbleText: '#1a1a1a',
+  btnHoverColor: '#1a1a1a',
+  placeholder: '#b0b0b0',
+
+  // Accent — green
+  accent: '#10a37f',
+  accentLight: 'rgba(16, 163, 127, 0.08)',
+  accentSoft: 'rgba(16, 163, 127, 0.1)',
+  accentBorder: 'rgba(16, 163, 127, 0.15)',
+  accentBorderMedium: 'rgba(16, 163, 127, 0.2)',
+  inputFocusBorder: 'rgba(16, 163, 127, 0.35)',
+  textOnAccent: '#ffffff',
+
+  // Status
+  statusRunning: '#10a37f',
+  statusRunningBg: 'rgba(16, 163, 127, 0.08)',
+  statusPermission: '#10a37f',
+  statusPermissionGlow: 'rgba(16, 163, 127, 0.2)',
+
+  // Tool running
+  toolRunningBorder: 'rgba(16, 163, 127, 0.15)',
+  toolRunningBg: 'rgba(16, 163, 127, 0.03)',
+
+  // Timeline
+  timelineNode: 'rgba(16, 163, 127, 0.12)',
+  timelineNodeActive: '#10a37f',
+
+  // Send button
+  sendBg: '#10a37f',
+  sendHover: '#0d8a6a',
+  sendDisabled: 'rgba(16, 163, 127, 0.2)',
+
+  // Scrollbar
+  scrollThumb: 'rgba(0, 0, 0, 0.08)',
+  scrollThumbHover: 'rgba(0, 0, 0, 0.15)',
+}
+
+/** Merge base palette with backend accent overrides */
+function withBackendAccent(base: typeof darkColors, overrides: Partial<typeof darkColors>): typeof darkColors {
+  return { ...base, ...overrides } as typeof darkColors
+}
+
 export type ColorPalette = { [K in keyof typeof darkColors]: string }
+
+/** Resolve full palette for a given theme + backend */
+function resolveColors(isDark: boolean, backend: BackendType): ColorPalette {
+  const base = isDark ? darkColors : lightColors
+  if (backend === 'codex') {
+    return withBackendAccent(base, isDark ? codexOverrideDark : codexOverrideLight)
+  }
+  return base
+}
 
 // ─── Theme store ───
 
@@ -277,17 +442,21 @@ interface ThemeState {
   themeMode: ThemeMode
   soundEnabled: boolean
   expandedUI: boolean
+  /** Active tab's backend — drives accent color */
+  activeBackend: BackendType
   /** OS-reported dark mode — used when themeMode is 'system' */
   _systemIsDark: boolean
   setIsDark: (isDark: boolean) => void
   setThemeMode: (mode: ThemeMode) => void
   setSoundEnabled: (enabled: boolean) => void
   setExpandedUI: (expanded: boolean) => void
+  /** Called when active tab changes — updates accent colors */
+  setActiveBackend: (backend: BackendType) => void
   /** Called by OS theme change listener — updates system value */
   setSystemTheme: (isDark: boolean) => void
 }
 
-/** Convert camelCase token name to --clui-kebab-case CSS custom property */
+/** Convert camelCase token name to --orbiter-kebab-case CSS custom property */
 function camelToKebab(s: string): string {
   return s.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
 }
@@ -296,17 +465,21 @@ function camelToKebab(s: string): string {
 function syncTokensToCss(tokens: ColorPalette): void {
   const style = document.documentElement.style
   for (const [key, value] of Object.entries(tokens)) {
-    style.setProperty(`--clui-${camelToKebab(key)}`, value)
+    style.setProperty(`--orbiter-${camelToKebab(key)}`, value)
   }
 }
 
-function applyTheme(isDark: boolean): void {
+/** Current backend for CSS sync — updated from store */
+let _currentBackend: BackendType = 'claude'
+
+function applyTheme(isDark: boolean, backend?: BackendType): void {
+  if (backend !== undefined) _currentBackend = backend
   document.documentElement.classList.toggle('dark', isDark)
   document.documentElement.classList.toggle('light', !isDark)
-  syncTokensToCss(isDark ? darkColors : lightColors)
+  syncTokensToCss(resolveColors(isDark, _currentBackend))
 }
 
-const SETTINGS_KEY = 'clui-settings'
+const SETTINGS_KEY = 'orbiter-settings'
 
 function loadSettings(): { themeMode: ThemeMode; soundEnabled: boolean; expandedUI: boolean } {
   try {
@@ -335,6 +508,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   themeMode: saved.themeMode,
   soundEnabled: saved.soundEnabled,
   expandedUI: saved.expandedUI,
+  activeBackend: 'claude' as BackendType,
   _systemIsDark: true,
   setIsDark: (isDark) => {
     set({ isDark })
@@ -354,6 +528,11 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     set({ expandedUI: expanded })
     saveSettings({ themeMode: get().themeMode, soundEnabled: get().soundEnabled, expandedUI: expanded })
   },
+  setActiveBackend: (backend) => {
+    if (backend === get().activeBackend) return
+    set({ activeBackend: backend })
+    applyTheme(get().isDark, backend)
+  },
   setSystemTheme: (isDark) => {
     set({ _systemIsDark: isDark })
     // Only apply if following system
@@ -367,15 +546,16 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 // Initialize CSS vars with saved theme
 syncTokensToCss(saved.themeMode === 'light' ? lightColors : darkColors)
 
-/** Reactive hook — returns the active color palette */
+/** Reactive hook — returns the active color palette (theme × backend) */
 export function useColors(): ColorPalette {
   const isDark = useThemeStore((s) => s.isDark)
-  return isDark ? darkColors : lightColors
+  const backend = useThemeStore((s) => s.activeBackend)
+  return resolveColors(isDark, backend)
 }
 
 /** Non-reactive getter — use outside React components */
 export function getColors(isDark: boolean): ColorPalette {
-  return isDark ? darkColors : lightColors
+  return resolveColors(isDark, _currentBackend)
 }
 
 // ─── Backward compatibility ───

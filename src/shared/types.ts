@@ -117,6 +117,10 @@ export interface UnknownEvent {
   [key: string]: unknown
 }
 
+// ─── Backend Types ───
+
+export type BackendType = 'claude' | 'codex'
+
 // ─── Tab State Machine (v2 — from execution plan) ───
 
 export type TabStatus = 'connecting' | 'idle' | 'running' | 'completed' | 'failed' | 'dead'
@@ -143,6 +147,7 @@ export interface Attachment {
 
 export interface TabState {
   id: string
+  backend: BackendType
   claudeSessionId: string | null
   status: TabStatus
   activeRequestId: string | null
@@ -170,6 +175,8 @@ export interface TabState {
   hasChosenDirectory: boolean
   /** Extra directories accessible via --add-dir (session-preserving) */
   additionalDirs: string[]
+  /** User's preferred model override for this tab (null = use default) */
+  preferredModel: string | null
 }
 
 export interface Message {
@@ -217,16 +224,19 @@ export interface RunOptions {
   maxBudgetUsd?: number
   systemPrompt?: string
   model?: string
-  /** Path to CLUI-scoped settings file with hook config (passed via --settings) */
+  /** Path to Orbiter-scoped settings file with hook config (passed via --settings) */
   hookSettingsPath?: string
   /** Extra directories to add via --add-dir (session-preserving) */
   addDirs?: string[]
+  /** Which backend to use for this run */
+  backend?: BackendType
 }
 
 // ─── Control Plane Types ───
 
 export interface TabRegistryEntry {
   tabId: string
+  backend: BackendType
   claudeSessionId: string | null
   status: TabStatus
   activeRequestId: string | null
@@ -298,71 +308,77 @@ export interface CatalogPlugin {
 
 export const IPC = {
   // Request-response (renderer → main)
-  START: 'clui:start',
-  CREATE_TAB: 'clui:create-tab',
-  PROMPT: 'clui:prompt',
-  CANCEL: 'clui:cancel',
-  STOP_TAB: 'clui:stop-tab',
-  RETRY: 'clui:retry',
-  STATUS: 'clui:status',
-  TAB_HEALTH: 'clui:tab-health',
-  CLOSE_TAB: 'clui:close-tab',
-  SELECT_DIRECTORY: 'clui:select-directory',
-  OPEN_EXTERNAL: 'clui:open-external',
-  OPEN_IN_TERMINAL: 'clui:open-in-terminal',
-  ATTACH_FILES: 'clui:attach-files',
-  TAKE_SCREENSHOT: 'clui:take-screenshot',
-  TRANSCRIBE_AUDIO: 'clui:transcribe-audio',
-  PASTE_IMAGE: 'clui:paste-image',
-  GET_DIAGNOSTICS: 'clui:get-diagnostics',
-  RESPOND_PERMISSION: 'clui:respond-permission',
-  INIT_SESSION: 'clui:init-session',
-  RESET_TAB_SESSION: 'clui:reset-tab-session',
-  ANIMATE_HEIGHT: 'clui:animate-height',
-  LIST_SESSIONS: 'clui:list-sessions',
-  LOAD_SESSION: 'clui:load-session',
+  START: 'orbiter:start',
+  CREATE_TAB: 'orbiter:create-tab',
+  PROMPT: 'orbiter:prompt',
+  CANCEL: 'orbiter:cancel',
+  STOP_TAB: 'orbiter:stop-tab',
+  RETRY: 'orbiter:retry',
+  STATUS: 'orbiter:status',
+  TAB_HEALTH: 'orbiter:tab-health',
+  CLOSE_TAB: 'orbiter:close-tab',
+  SELECT_DIRECTORY: 'orbiter:select-directory',
+  OPEN_EXTERNAL: 'orbiter:open-external',
+  OPEN_IN_TERMINAL: 'orbiter:open-in-terminal',
+  ATTACH_FILES: 'orbiter:attach-files',
+  TAKE_SCREENSHOT: 'orbiter:take-screenshot',
+  TRANSCRIBE_AUDIO: 'orbiter:transcribe-audio',
+  PASTE_IMAGE: 'orbiter:paste-image',
+  GET_DIAGNOSTICS: 'orbiter:get-diagnostics',
+  RESPOND_PERMISSION: 'orbiter:respond-permission',
+  INIT_SESSION: 'orbiter:init-session',
+  RESET_TAB_SESSION: 'orbiter:reset-tab-session',
+  ANIMATE_HEIGHT: 'orbiter:animate-height',
+  LIST_SESSIONS: 'orbiter:list-sessions',
+  LOAD_SESSION: 'orbiter:load-session',
+  LIST_CODEX_SESSIONS: 'orbiter:list-codex-sessions',
+  LOAD_CODEX_SESSION: 'orbiter:load-codex-session',
 
   // One-way events (main → renderer)
-  TEXT_CHUNK: 'clui:text-chunk',
-  TOOL_CALL: 'clui:tool-call',
-  TOOL_CALL_UPDATE: 'clui:tool-call-update',
-  TOOL_CALL_COMPLETE: 'clui:tool-call-complete',
-  TASK_UPDATE: 'clui:task-update',
-  TASK_COMPLETE: 'clui:task-complete',
-  SESSION_DEAD: 'clui:session-dead',
-  SESSION_INIT: 'clui:session-init',
-  ERROR: 'clui:error',
-  RATE_LIMIT: 'clui:rate-limit',
+  TEXT_CHUNK: 'orbiter:text-chunk',
+  TOOL_CALL: 'orbiter:tool-call',
+  TOOL_CALL_UPDATE: 'orbiter:tool-call-update',
+  TOOL_CALL_COMPLETE: 'orbiter:tool-call-complete',
+  TASK_UPDATE: 'orbiter:task-update',
+  TASK_COMPLETE: 'orbiter:task-complete',
+  SESSION_DEAD: 'orbiter:session-dead',
+  SESSION_INIT: 'orbiter:session-init',
+  ERROR: 'orbiter:error',
+  RATE_LIMIT: 'orbiter:rate-limit',
 
   // Window management
-  RESIZE_HEIGHT: 'clui:resize-height',
-  SET_WINDOW_WIDTH: 'clui:set-window-width',
-  HIDE_WINDOW: 'clui:hide-window',
-  WINDOW_SHOWN: 'clui:window-shown',
-  SET_IGNORE_MOUSE_EVENTS: 'clui:set-ignore-mouse-events',
-  IS_VISIBLE: 'clui:is-visible',
+  RESIZE_HEIGHT: 'orbiter:resize-height',
+  SET_WINDOW_WIDTH: 'orbiter:set-window-width',
+  HIDE_WINDOW: 'orbiter:hide-window',
+  WINDOW_SHOWN: 'orbiter:window-shown',
+  SET_IGNORE_MOUSE_EVENTS: 'orbiter:set-ignore-mouse-events',
+  IS_VISIBLE: 'orbiter:is-visible',
 
   // Skill provisioning (main → renderer)
-  SKILL_STATUS: 'clui:skill-status',
+  SKILL_STATUS: 'orbiter:skill-status',
 
   // Platform
-  GET_PLATFORM_INFO: 'clui:get-platform-info',
+  GET_PLATFORM_INFO: 'orbiter:get-platform-info',
 
   // Theme
-  GET_THEME: 'clui:get-theme',
-  THEME_CHANGED: 'clui:theme-changed',
+  GET_THEME: 'orbiter:get-theme',
+  THEME_CHANGED: 'orbiter:theme-changed',
 
   // Marketplace
-  MARKETPLACE_FETCH: 'clui:marketplace-fetch',
-  MARKETPLACE_INSTALLED: 'clui:marketplace-installed',
-  MARKETPLACE_INSTALL: 'clui:marketplace-install',
-  MARKETPLACE_UNINSTALL: 'clui:marketplace-uninstall',
+  MARKETPLACE_FETCH: 'orbiter:marketplace-fetch',
+  MARKETPLACE_INSTALLED: 'orbiter:marketplace-installed',
+  MARKETPLACE_INSTALL: 'orbiter:marketplace-install',
+  MARKETPLACE_UNINSTALL: 'orbiter:marketplace-uninstall',
 
   // Permission mode
-  SET_PERMISSION_MODE: 'clui:set-permission-mode',
+  SET_PERMISSION_MODE: 'orbiter:set-permission-mode',
+
+  // Backend switching
+  SET_TAB_BACKEND: 'orbiter:set-tab-backend',
+  CHECK_BACKEND: 'orbiter:check-backend',
 
   // Legacy (kept for backward compat during migration)
-  STREAM_EVENT: 'clui:stream-event',
-  RUN_COMPLETE: 'clui:run-complete',
-  RUN_ERROR: 'clui:run-error',
+  STREAM_EVENT: 'orbiter:stream-event',
+  RUN_COMPLETE: 'orbiter:run-complete',
+  RUN_ERROR: 'orbiter:run-error',
 } as const

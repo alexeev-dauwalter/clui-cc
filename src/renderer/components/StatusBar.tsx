@@ -1,20 +1,147 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Terminal, CaretDown, Check, FolderOpen, Plus, X, ShieldCheck } from '@phosphor-icons/react'
-import { useSessionStore, AVAILABLE_MODELS } from '../stores/sessionStore'
+import { TerminalIcon, CaretDownIcon, CheckIcon, FolderOpenIcon, PlusIcon, XIcon, ShieldCheckIcon } from '@phosphor-icons/react'
+import { useSessionStore } from '../stores/sessionStore'
+import { BACKEND_CONFIGS } from '../../shared/backend-config'
+import type { BackendType } from '../../shared/types'
+import { ClaudeIcon, CodexIcon } from './BackendIcons'
 import { usePopoverLayer } from './PopoverLayer'
 import { useColors } from '../theme'
 
 /* ─── Model Picker (inline — tightly coupled to StatusBar) ─── */
 
+/* ─── Backend Picker ─── */
+
+function BackendPicker() {
+  const tab = useSessionStore(
+    (s) => s.tabs.find((t) => t.id === s.activeTabId),
+    (a, b) => a === b || (!!a && !!b && a.status === b.status && a.backend === b.backend && a.messages.length === b.messages.length),
+  )
+  const codexAvailable = useSessionStore((s) => s.codexAvailable)
+  const setTabBackend = useSessionStore((s) => s.setTabBackend)
+  const popoverLayer = usePopoverLayer()
+  const colors = useColors()
+
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ bottom: 0, left: 0 })
+
+  const isBusy = tab?.status === 'running' || tab?.status === 'connecting'
+  const isLocked = (tab?.messages.length ?? 0) > 0
+  const currentBackend: BackendType = tab?.backend || 'claude'
+
+  const updatePos = useCallback(() => {
+    if (!triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    setPos({ bottom: window.innerHeight - rect.top + 6, left: rect.left })
+  }, [])
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (triggerRef.current?.contains(target)) return
+      if (popoverRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const isDisabled = isBusy || isLocked
+
+  const handleToggle = () => {
+    if (isDisabled) return
+    if (!open) updatePos()
+    setOpen((o) => !o)
+  }
+
+  const Icon = currentBackend === 'claude' ? ClaudeIcon : CodexIcon
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        onClick={handleToggle}
+        className={`flex items-center gap-0.5 text-[10px] rounded-full px-1.5 py-0.5 transition-colors text-text-tertiary ${!isDisabled ? 'hover:text-text-secondary' : ''}`}
+        style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
+        title={isLocked ? 'Backend is locked for this session' : isBusy ? 'Stop the task to switch backend' : 'Switch backend'}
+      >
+        <Icon size={11} />
+        {BACKEND_CONFIGS[currentBackend].displayName}
+        <CaretDownIcon size={10} style={{ opacity: 0.6 }} />
+      </button>
+
+      {popoverLayer && open && createPortal(
+        <motion.div
+          ref={popoverRef}
+          data-orbiter-ui
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 4 }}
+          transition={{ duration: 0.12 }}
+          className="rounded-xl bg-popover-bg border border-popover-border"
+          style={{
+            position: 'fixed',
+            bottom: pos.bottom,
+            left: pos.left,
+            width: 180,
+            pointerEvents: 'auto',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            boxShadow: colors.popoverShadow,
+          }}
+        >
+          <div className="py-1">
+            {(['claude', 'codex'] as BackendType[]).map((b) => {
+              const config = BACKEND_CONFIGS[b]
+              const isSelected = b === currentBackend
+              const disabled = b === 'codex' && !codexAvailable
+              const BIcon = b === 'claude' ? ClaudeIcon : CodexIcon
+              return (
+                <button
+                  key={b}
+                  onClick={() => { if (!disabled) { setTabBackend(b); setOpen(false) } }}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors ${disabled ? 'text-text-muted' : isSelected ? 'text-text-primary' : 'text-text-secondary'}`}
+                  style={{
+                    fontWeight: isSelected ? 600 : 400,
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    opacity: disabled ? 0.5 : 1,
+                  }}
+                  title={disabled ? 'Install Codex CLI' : undefined}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <BIcon size={12} />
+                    {config.displayName}
+                  </span>
+                  {isSelected && <CheckIcon size={12} className="text-accent" />}
+                </button>
+              )
+            })}
+          </div>
+        </motion.div>,
+        popoverLayer,
+      )}
+    </>
+  )
+}
+
+/* ─── Model Picker (inline — tightly coupled to StatusBar) ─── */
+
 function ModelPicker() {
-  const preferredModel = useSessionStore((s) => s.preferredModel)
+  const preferredModel = useSessionStore(
+    (s) => s.tabs.find((t) => t.id === s.activeTabId)?.preferredModel ?? null,
+    (a, b) => a === b,
+  )
   const setPreferredModel = useSessionStore((s) => s.setPreferredModel)
   const tab = useSessionStore(
     (s) => s.tabs.find((t) => t.id === s.activeTabId),
-    (a, b) => a === b || (!!a && !!b && a.status === b.status && a.sessionModel === b.sessionModel),
+    (a, b) => a === b || (!!a && !!b && a.status === b.status && a.sessionModel === b.sessionModel && a.backend === b.backend),
   )
+  const backend = tab?.backend || 'claude'
+  const models = BACKEND_CONFIGS[backend].fallbackModels
   const popoverLayer = usePopoverLayer()
   const colors = useColors()
 
@@ -54,14 +181,14 @@ function ModelPicker() {
 
   const activeLabel = (() => {
     if (preferredModel) {
-      const m = AVAILABLE_MODELS.find((m) => m.id === preferredModel)
-      return m?.label || preferredModel
+      const m = models.find((m) => m.id === preferredModel)
+      if (m) return m.label
     }
     if (tab?.sessionModel) {
-      const m = AVAILABLE_MODELS.find((m) => m.id === tab.sessionModel)
-      return m?.label || tab.sessionModel
+      const m = models.find((m) => m.id === tab.sessionModel)
+      if (m) return m.label
     }
-    return AVAILABLE_MODELS[0].label
+    return models[0]?.label || 'Default'
   })()
 
   return (
@@ -69,56 +196,48 @@ function ModelPicker() {
       <button
         ref={triggerRef}
         onClick={handleToggle}
-        className="flex items-center gap-0.5 text-[10px] rounded-full px-1.5 py-0.5 transition-colors"
-        style={{
-          color: colors.textTertiary,
-          cursor: isBusy ? 'not-allowed' : 'pointer',
-        }}
-        onMouseEnter={(e) => { if (!isBusy) e.currentTarget.style.color = colors.textSecondary }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = colors.textTertiary }}
+        className={`flex items-center gap-0.5 text-[10px] rounded-full px-1.5 py-0.5 transition-colors text-text-tertiary ${!isBusy ? 'hover:text-text-secondary' : ''}`}
+        style={{ cursor: isBusy ? 'not-allowed' : 'pointer' }}
         title={isBusy ? 'Stop the task to change model' : 'Switch model'}
       >
         {activeLabel}
-        <CaretDown size={10} style={{ opacity: 0.6 }} />
+        <CaretDownIcon size={10} style={{ opacity: 0.6 }} />
       </button>
 
       {popoverLayer && open && createPortal(
         <motion.div
           ref={popoverRef}
-          data-clui-ui
+          data-orbiter-ui
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 4 }}
           transition={{ duration: 0.12 }}
-          className="rounded-xl"
+          className="rounded-xl bg-popover-bg border border-popover-border"
           style={{
             position: 'fixed',
             bottom: pos.bottom,
             left: pos.left,
             width: 192,
             pointerEvents: 'auto',
-            background: colors.popoverBg,
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             boxShadow: colors.popoverShadow,
-            border: `1px solid ${colors.popoverBorder}`,
           }}
         >
           <div className="py-1">
-            {AVAILABLE_MODELS.map((m) => {
-              const isSelected = preferredModel === m.id || (!preferredModel && m.id === AVAILABLE_MODELS[0].id)
+            {models.map((m) => {
+              const isSelected = preferredModel === m.id || (!preferredModel && m.id === models[0]?.id)
               return (
                 <button
                   key={m.id}
                   onClick={() => { setPreferredModel(m.id); setOpen(false) }}
-                  className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors"
+                  className={`w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors cursor-pointer ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}
                   style={{
-                    color: isSelected ? colors.textPrimary : colors.textSecondary,
                     fontWeight: isSelected ? 600 : 400,
                   }}
                 >
                   {m.label}
-                  {isSelected && <Check size={12} style={{ color: colors.accent }} />}
+                  {isSelected && <CheckIcon size={12} className="text-accent" />}
                 </button>
               )
             })}
@@ -176,73 +295,63 @@ function PermissionModePicker() {
       <button
         ref={triggerRef}
         onClick={handleToggle}
-        className="flex items-center gap-0.5 text-[10px] rounded-full px-1.5 py-0.5 transition-colors"
-        style={{
-          color: colors.textTertiary,
-          cursor: 'pointer',
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = colors.textSecondary }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = colors.textTertiary }}
+        className="flex items-center gap-0.5 text-[10px] rounded-full px-1.5 py-0.5 transition-colors text-text-tertiary hover:text-text-secondary cursor-pointer"
         title="Permission mode (global)"
       >
-        <ShieldCheck size={11} weight={isAuto ? 'fill' : 'regular'} />
+        <ShieldCheckIcon size={11} weight={isAuto ? 'fill' : 'regular'} />
         {isAuto ? 'Auto' : 'Ask'}
-        <CaretDown size={10} style={{ opacity: 0.6 }} />
+        <CaretDownIcon size={10} style={{ opacity: 0.6 }} />
       </button>
 
       {popoverLayer && open && createPortal(
         <motion.div
           ref={popoverRef}
-          data-clui-ui
+          data-orbiter-ui
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 4 }}
           transition={{ duration: 0.12 }}
-          className="rounded-xl"
+          className="rounded-xl bg-popover-bg border border-popover-border"
           style={{
             position: 'fixed',
             bottom: pos.bottom,
             left: pos.left,
             width: 180,
             pointerEvents: 'auto',
-            background: colors.popoverBg,
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             boxShadow: colors.popoverShadow,
-            border: `1px solid ${colors.popoverBorder}`,
           }}
         >
           <div className="py-1">
             <button
               onClick={() => { setPermissionMode('ask'); setOpen(false) }}
-              className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors"
+              className={`w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors cursor-pointer ${!isAuto ? 'text-text-primary' : 'text-text-secondary'}`}
               style={{
-                color: !isAuto ? colors.textPrimary : colors.textSecondary,
                 fontWeight: !isAuto ? 600 : 400,
               }}
             >
               <span className="flex items-center gap-1.5">
-                <ShieldCheck size={12} />
+                <ShieldCheckIcon size={12} />
                 Ask
               </span>
-              {!isAuto && <Check size={12} style={{ color: colors.accent }} />}
+              {!isAuto && <CheckIcon size={12} className="text-accent" />}
             </button>
 
-            <div className="mx-2 my-0.5" style={{ height: 1, background: colors.popoverBorder }} />
+            <div className="mx-2 my-0.5 h-px bg-popover-border" />
 
             <button
               onClick={() => { setPermissionMode('auto'); setOpen(false) }}
-              className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors"
+              className={`w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors cursor-pointer ${isAuto ? 'text-text-primary' : 'text-text-secondary'}`}
               style={{
-                color: isAuto ? colors.textPrimary : colors.textSecondary,
                 fontWeight: isAuto ? 600 : 400,
               }}
             >
               <span className="flex items-center gap-1.5">
-                <ShieldCheck size={12} weight="fill" />
+                <ShieldCheckIcon size={12} weight="fill" />
                 Auto
               </span>
-              {isAuto && <Check size={12} style={{ color: colors.accent }} />}
+              {isAuto && <CheckIcon size={12} className="text-accent" />}
             </button>
           </div>
         </motion.div>,
@@ -266,6 +375,7 @@ export function StatusBar() {
     (s) => s.tabs.find((t) => t.id === s.activeTabId),
     (a, b) => a === b || (!!a && !!b
       && a.status === b.status
+      && a.backend === b.backend
       && a.additionalDirs === b.additionalDirs
       && a.hasChosenDirectory === b.hasChosenDirectory
       && a.workingDirectory === b.workingDirectory
@@ -302,7 +412,7 @@ export function StatusBar() {
   const hasExtraDirs = tab.additionalDirs.length > 0
 
   const handleOpenInTerminal = () => {
-    window.clui.openInTerminal(tab.claudeSessionId, tab.workingDirectory)
+    window.orbiter.openInTerminal(tab.claudeSessionId, tab.workingDirectory, tab.backend)
   }
 
   const handleDirClick = () => {
@@ -318,7 +428,7 @@ export function StatusBar() {
   }
 
   const handleAddDir = async () => {
-    const dir = await window.clui.selectDirectory()
+    const dir = await window.orbiter.selectDirectory()
     if (dir) {
       addDirectory(dir)
     }
@@ -334,26 +444,23 @@ export function StatusBar() {
       style={{ minHeight: 28 }}
     >
       {/* Left — directory + model picker */}
-      <div className="flex items-center gap-2 text-[11px] min-w-0" style={{ color: colors.textTertiary }}>
+      <div className="flex items-center gap-2 text-[11px] min-w-0 text-text-tertiary">
         {/* Directory button */}
         <button
           ref={dirRef}
           onClick={handleDirClick}
-          className="flex items-center gap-1 rounded-full px-1.5 py-0.5 transition-colors flex-shrink-0"
+          className="flex items-center gap-1 rounded-full px-1.5 py-0.5 transition-colors flex-shrink-0 text-text-tertiary hover:text-text-secondary"
           style={{
-            color: colors.textTertiary,
             cursor: isRunning ? 'not-allowed' : 'pointer',
             maxWidth: 140,
           }}
-          onMouseEnter={(e) => { if (!isRunning) e.currentTarget.style.color = colors.textSecondary }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = colors.textTertiary }}
           title={dirTooltip}
           disabled={isRunning}
         >
-          <FolderOpen size={11} className="flex-shrink-0" />
-          <span className="truncate">{tab.hasChosenDirectory ? compactPath(tab.workingDirectory) : '—'}</span>
+          <FolderOpenIcon size={11} className="flex-shrink-0" />
+          <span className="truncate">{tab.hasChosenDirectory ? compactPath(tab.workingDirectory) : '~'}</span>
           {hasExtraDirs && (
-            <span style={{ color: colors.textTertiary, fontWeight: 600 }}>+{tab.additionalDirs.length}</span>
+            <span className="text-text-tertiary font-semibold">+{tab.additionalDirs.length}</span>
           )}
         </button>
 
@@ -361,31 +468,29 @@ export function StatusBar() {
         {popoverLayer && dirOpen && createPortal(
           <motion.div
             ref={dirPopRef}
-            data-clui-ui
+            data-orbiter-ui
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.12 }}
-            className="rounded-xl"
+            className="rounded-xl bg-popover-bg border border-popover-border"
             style={{
               position: 'fixed',
               bottom: dirPos.bottom,
               left: dirPos.left,
               width: 220,
               pointerEvents: 'auto',
-              background: colors.popoverBg,
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
               boxShadow: colors.popoverShadow,
-              border: `1px solid ${colors.popoverBorder}`,
             }}
           >
             <div className="py-1.5 px-1">
               {/* Base directory */}
               <div className="px-2 py-1">
-                <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: colors.textTertiary }}>
+                <div className="text-[9px] uppercase tracking-wider mb-1 text-text-tertiary">
                   Base directory
                 </div>
-                <div className="text-[11px] truncate" style={{ color: tab.hasChosenDirectory ? colors.textSecondary : colors.textMuted }} title={tab.hasChosenDirectory ? tab.workingDirectory : 'No folder selected — defaults to home directory'}>
+                <div className={`text-[11px] truncate ${tab.hasChosenDirectory ? 'text-text-secondary' : 'text-text-muted'}`} title={tab.hasChosenDirectory ? tab.workingDirectory : 'No folder selected — defaults to home directory'}>
                   {tab.hasChosenDirectory ? tab.workingDirectory : 'None (defaults to ~)'}
                 </div>
               </div>
@@ -393,23 +498,22 @@ export function StatusBar() {
               {/* Additional directories */}
               {hasExtraDirs && (
                 <>
-                  <div className="mx-2 my-1" style={{ height: 1, background: colors.popoverBorder }} />
+                  <div className="mx-2 my-1 h-px bg-popover-border" />
                   <div className="px-2 py-1">
-                    <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: colors.textTertiary }}>
+                    <div className="text-[9px] uppercase tracking-wider mb-1 text-text-tertiary">
                       Added directories
                     </div>
                     {tab.additionalDirs.map((dir) => (
                       <div key={dir} className="flex items-center justify-between py-0.5 group">
-                        <span className="text-[11px] truncate mr-2" style={{ color: colors.textSecondary }} title={dir}>
+                        <span className="text-[11px] truncate mr-2 text-text-secondary" title={dir}>
                           {compactPath(dir)}
                         </span>
                         <button
                           onClick={() => removeDirectory(dir)}
-                          className="flex-shrink-0 opacity-50 hover:opacity-100 transition-opacity cursor-pointer"
-                          style={{ color: colors.textTertiary }}
+                          className="flex-shrink-0 opacity-50 hover:opacity-100 transition-opacity cursor-pointer text-text-tertiary"
                           title="Remove directory"
                         >
-                          <X size={10} />
+                          <XIcon size={10} />
                         </button>
                       </div>
                     ))}
@@ -417,17 +521,14 @@ export function StatusBar() {
                 </>
               )}
 
-              <div className="mx-2 my-1" style={{ height: 1, background: colors.popoverBorder }} />
+              <div className="mx-2 my-1 h-px bg-popover-border" />
 
               {/* Add directory button */}
               <button
                 onClick={handleAddDir}
-                className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] transition-colors rounded-lg cursor-pointer"
-                style={{ color: colors.accent }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = colors.surfaceHover }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] transition-colors rounded-lg cursor-pointer text-accent hover:bg-surface-hover"
               >
-                <Plus size={10} />
+                <PlusIcon size={10} />
                 Add directory...
               </button>
             </div>
@@ -435,11 +536,15 @@ export function StatusBar() {
           popoverLayer,
         )}
 
-        <span style={{ color: colors.textMuted, fontSize: 10 }}>|</span>
+        <span className="text-text-muted text-[10px]">|</span>
+
+        <BackendPicker />
+
+        <span className="text-text-muted text-[10px]">|</span>
 
         <ModelPicker />
 
-        <span style={{ color: colors.textMuted, fontSize: 10 }}>|</span>
+        <span className="text-text-muted text-[10px]">|</span>
 
         <PermissionModePicker />
       </div>
@@ -448,14 +553,11 @@ export function StatusBar() {
       <div className="flex items-center gap-1.5 flex-shrink-0">
         <button
           onClick={handleOpenInTerminal}
-          className="flex items-center gap-1 text-[11px] rounded-full px-2 py-0.5 transition-colors cursor-pointer"
-          style={{ color: colors.textTertiary }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = colors.textPrimary }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = colors.textTertiary }}
+          className="flex items-center gap-1 text-[11px] rounded-full px-2 py-0.5 transition-colors cursor-pointer text-text-tertiary hover:text-text-primary"
           title="Open this session in Terminal"
         >
           Open in CLI
-          <Terminal size={11} />
+          <TerminalIcon size={11} />
         </button>
       </div>
     </div>

@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import { Clock, ChatCircle } from '@phosphor-icons/react'
+import { ClockIcon, ChatCircleIcon } from '@phosphor-icons/react'
 import { useSessionStore } from '../stores/sessionStore'
+import { ClaudeIcon, CodexIcon } from './BackendIcons'
 import { usePopoverLayer } from './PopoverLayer'
 import { useColors } from '../theme'
-import type { SessionMeta } from '../../shared/types'
+import type { SessionMeta, BackendType } from '../../shared/types'
 
 function formatTimeAgo(isoDate: string): string {
   const diff = Date.now() - new Date(isoDate).getTime()
@@ -27,6 +28,7 @@ function formatSize(bytes: number): string {
 
 export function HistoryPicker() {
   const resumeSession = useSessionStore((s) => s.resumeSession)
+  const codexAvailable = useSessionStore((s) => s.codexAvailable)
   const isExpanded = useSessionStore((s) => s.isExpanded)
   const activeTab = useSessionStore(
     (s) => s.tabs.find((t) => t.id === s.activeTabId),
@@ -40,6 +42,7 @@ export function HistoryPicker() {
     : (staticInfo?.homePath || activeTab?.workingDirectory || '~')
 
   const [open, setOpen] = useState(false)
+  const [historyTab, setHistoryTab] = useState<BackendType>('claude')
   const [sessions, setSessions] = useState<SessionMeta[]>([])
   const [loading, setLoading] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -64,10 +67,12 @@ export function HistoryPicker() {
     }
   }, [isExpanded])
 
-  const loadSessions = useCallback(async () => {
+  const loadSessions = useCallback(async (backend: BackendType) => {
     setLoading(true)
     try {
-      const result = await window.clui.listSessions(effectiveProjectPath)
+      const result = backend === 'codex'
+        ? await window.orbiter.listCodexSessions(effectiveProjectPath)
+        : await window.orbiter.listSessions(effectiveProjectPath)
       setSessions(result)
     } catch {
       setSessions([])
@@ -90,9 +95,14 @@ export function HistoryPicker() {
   const handleToggle = () => {
     if (!open) {
       updatePos()
-      void loadSessions()
+      void loadSessions(historyTab)
     }
     setOpen((o) => !o)
+  }
+
+  const handleTabSwitch = (tab: BackendType) => {
+    setHistoryTab(tab)
+    void loadSessions(tab)
   }
 
   const handleSelect = (session: SessionMeta) => {
@@ -100,7 +110,7 @@ export function HistoryPicker() {
     const title = session.firstMessage
       ? (session.firstMessage.length > 30 ? session.firstMessage.substring(0, 27) + '...' : session.firstMessage)
       : session.slug || 'Resumed'
-    void resumeSession(session.sessionId, title, effectiveProjectPath)
+    void resumeSession(session.sessionId, title, effectiveProjectPath, historyTab)
   }
 
   return (
@@ -108,55 +118,64 @@ export function HistoryPicker() {
       <button
         ref={triggerRef}
         onClick={handleToggle}
-        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-colors cursor-pointer"
-        style={{ color: colors.textTertiary }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = colors.textPrimary }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = colors.textTertiary }}
+        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-colors cursor-pointer text-text-tertiary hover:text-text-primary"
         title="Resume a previous session"
       >
-        <Clock size={13} />
+        <ClockIcon size={13} />
       </button>
 
       {popoverLayer && open && createPortal(
         <motion.div
           ref={popoverRef}
-          data-clui-ui
+          data-orbiter-ui
           initial={{ opacity: 0, y: isExpanded ? -4 : 4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: isExpanded ? -4 : 4 }}
           transition={{ duration: 0.12 }}
-          className="rounded-xl"
+          className="rounded-xl bg-popover-bg border border-popover-border fixed w-[280px] pointer-events-auto backdrop-blur-[20px] overflow-hidden flex flex-col"
           style={{
-            position: 'fixed',
             ...(pos.top != null ? { top: pos.top } : {}),
             ...(pos.bottom != null ? { bottom: pos.bottom } : {}),
             right: pos.right,
-            width: 280,
-            pointerEvents: 'auto',
-            background: colors.popoverBg,
-            backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             boxShadow: colors.popoverShadow,
-            border: `1px solid ${colors.popoverBorder}`,
             ...(pos.maxHeight != null ? { maxHeight: pos.maxHeight } : {}),
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column' as const,
           }}
         >
-          <div className="px-3 py-2 text-[11px] font-medium flex-shrink-0" style={{ color: colors.textTertiary, borderBottom: `1px solid ${colors.popoverBorder}` }}>
-            Recent Sessions
+          {/* Tab switcher */}
+          <div className="flex items-center gap-1 px-2 pt-2 pb-1 flex-shrink-0">
+            {(['claude', 'codex'] as BackendType[]).map((tab) => {
+              const isActive = tab === historyTab
+              const Icon = tab === 'claude' ? ClaudeIcon : CodexIcon
+              const disabled = tab === 'codex' && !codexAvailable
+              return (
+                <button
+                  key={tab}
+                  onClick={() => !disabled && handleTabSwitch(tab)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium transition-colors"
+                  style={{
+                    background: isActive ? colors.surfacePrimary : 'transparent',
+                    color: disabled ? colors.textMuted : isActive ? colors.textPrimary : colors.textTertiary,
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    opacity: disabled ? 0.5 : 1,
+                  }}
+                >
+                  <Icon size={10} />
+                  {tab === 'claude' ? 'Claude' : 'Codex'}
+                </button>
+              )
+            })}
           </div>
 
           <div className="overflow-y-auto py-1" style={{ maxHeight: pos.maxHeight != null ? undefined : 180 }}>
             {loading && (
-              <div className="px-3 py-4 text-center text-[11px]" style={{ color: colors.textTertiary }}>
+              <div className="px-3 py-4 text-center text-[11px] text-text-tertiary">
                 Loading...
               </div>
             )}
 
             {!loading && sessions.length === 0 && (
-              <div className="px-3 py-4 text-center text-[11px]" style={{ color: colors.textTertiary }}>
+              <div className="px-3 py-4 text-center text-[11px] text-text-tertiary">
                 No previous sessions found
               </div>
             )}
@@ -167,12 +186,12 @@ export function HistoryPicker() {
                 onClick={() => handleSelect(session)}
                 className="w-full flex items-start gap-2.5 px-3 py-2 text-left transition-colors"
               >
-                <ChatCircle size={13} className="flex-shrink-0 mt-0.5" style={{ color: colors.textTertiary }} />
+                <ChatCircleIcon size={13} className="flex-shrink-0 mt-0.5 text-text-tertiary" />
                 <div className="min-w-0 flex-1">
-                  <div className="text-[11px] truncate" style={{ color: colors.textPrimary }}>
+                  <div className="text-[11px] truncate text-text-primary">
                     {session.firstMessage || session.slug || session.sessionId.substring(0, 8)}
                   </div>
-                  <div className="flex items-center gap-2 text-[10px] mt-0.5" style={{ color: colors.textTertiary }}>
+                  <div className="flex items-center gap-2 text-[10px] mt-0.5 text-text-tertiary">
                     <span>{formatTimeAgo(session.lastTimestamp)}</span>
                     <span>{formatSize(session.size)}</span>
                     {session.slug && <span className="truncate">{session.slug}</span>}

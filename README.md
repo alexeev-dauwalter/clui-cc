@@ -1,6 +1,6 @@
-# Clui CC — Command Line User Interface for Claude Code
+# Orbiter — Desktop UI for Claude Code & Codex
 
-A lightweight, transparent desktop overlay for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) on macOS. Clui CC wraps the Claude Code CLI in a floating pill interface with multi-tab sessions, a permission approval UI, voice input, and a skills marketplace.
+A lightweight, transparent desktop overlay for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and [OpenAI Codex](https://github.com/openai/codex) on macOS and Linux. Orbiter wraps both CLIs in a unified floating interface with per-tab backend switching, multi-tab sessions, permission approval, voice input, and a skills marketplace.
 
 ## Demo
 
@@ -11,50 +11,52 @@ A lightweight, transparent desktop overlay for [Claude Code](https://docs.anthro
 ## Features
 
 - **Floating overlay** — transparent, click-through window that stays on top. Toggle with `⌥ + Space` (fallback: `Cmd+Shift+K`).
-- **Multi-tab sessions** — each tab spawns its own `claude -p` process with independent session state.
-- **Permission approval UI** — intercepts tool calls via PreToolUse HTTP hooks so you can review and approve/deny from the UI.
-- **Conversation history** — browse and resume past Claude Code sessions.
-- **Skills marketplace** — install plugins from Anthropic's GitHub repos without leaving Clui CC.
+- **Multi-backend tabs** — switch between Claude Code and Codex per tab. Each tab is locked to its backend after the first message.
+- **Multi-tab sessions** — each tab spawns its own `claude -p` or `codex exec --json` process with independent session state.
+- **Permission approval UI** — intercepts tool calls via HTTP hooks (Claude) or NDJSON approval events (Codex) so you can review and approve/deny from the UI.
+- **Conversation history** — browse and resume past sessions for both Claude and Codex with tabbed history picker.
+- **Skills marketplace** — install plugins from Anthropic's GitHub repos without leaving Orbiter.
 - **Voice input** — local speech-to-text via Whisper (required, installed automatically).
 - **File & screenshot attachments** — paste images or attach files directly.
 - **Dual theme** — dark/light mode with system-follow option.
 
-## Why Clui CC
+## Why Orbiter
 
-- **Claude Code, but visual** — keep CLI power while getting a fast desktop UX for approvals, history, and multitasking.
-- **Human-in-the-loop safety** — tool calls are reviewed and approved in-app before execution.
-- **Session-native workflow** — each tab runs an independent Claude session you can resume later.
-- **Local-first** — everything runs through your local Claude CLI. No telemetry, no cloud dependency.
+- **Two AI backends, one UI** — switch between Claude Code and Codex without leaving the app. Each tab gets its own backend with matching theme colors.
+- **Human-in-the-loop safety** — tool calls are reviewed and approved in-app before execution, for both backends.
+- **Session-native workflow** — each tab runs an independent session you can resume later (Claude `--resume` / Codex `exec resume`).
+- **Local-first** — everything runs through your local CLIs. No telemetry, no cloud dependency.
 
 ## How It Works
 
 ```
-UI prompt → Main process spawns claude -p → NDJSON stream → live render
-                                         → tool call? → permission UI → approve/deny
+UI prompt → Main process spawns claude -p or codex exec --json
+         → NDJSON stream → normalize to common events → live render
+         → tool call? → permission UI → approve/deny
 ```
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full deep-dive.
 
 ## Install App (Recommended)
 
-The fastest way to get Clui CC running as a regular Mac app. This installs dependencies, voice support (Whisper), builds the app, copies it to `/Applications`, and launches it.
+The fastest way to get Orbiter running as a regular Mac app. This installs dependencies, voice support (Whisper), builds the app, copies it to `/Applications`, and launches it.
 
 **1) Clone the repo**
 
 ```bash
-git clone https://github.com/lcoutodemos/clui-cc.git
+git clone https://github.com/lcoutodemos/orbiter.git
 ```
 
 **2) Double-click `install-app.command`**
 
-Open the `clui-cc` folder in Finder and double-click `install-app.command`.
+Open the `orbiter` folder in Finder and double-click `install-app.command`.
 
 > **First launch:** macOS may block the app because it's unsigned. Go to **System Settings → Privacy & Security → Open Anyway**. You only need to do this once.
 > **Folder cleanup:** the installer removes temporary `dist/` and `release/` folders after a successful install to keep the repo tidy.
 
-<p align="center"><img src="docs/shortcut.png" width="520" alt="Press Option + Space to show or hide Clui CC" /></p>
+<p align="center"><img src="docs/shortcut.png" width="520" alt="Press Option + Space to show or hide Orbiter" /></p>
 
-After the initial install, just open **Clui CC** from your Applications folder or Spotlight.
+After the initial install, just open **Orbiter** from your Applications folder or Spotlight.
 
 <details>
 <summary><strong>Terminal / Developer Commands</strong></summary>
@@ -64,11 +66,11 @@ Only `install-app.command` is kept at root intentionally for non-technical users
 ### Quick Start (Terminal)
 
 ```bash
-git clone https://github.com/lcoutodemos/clui-cc.git
+git clone https://github.com/lcoutodemos/orbiter.git
 ```
 
 ```bash
-cd clui-cc
+cd orbiter
 ```
 
 ```bash
@@ -105,7 +107,7 @@ Renderer changes update instantly. Main-process changes require restarting `npm 
 |---------|---------|
 | `./commands/setup.command` | Environment check + install dependencies |
 | `./commands/start.command` | Build and launch from source |
-| `./commands/stop.command` | Stop all Clui CC processes |
+| `./commands/stop.command` | Stop all Orbiter processes |
 | `npm run build` | Production build (no packaging) |
 | `npm run dist` | Package as macOS `.app` into `release/` |
 | `npm run doctor` | Run environment diagnostic |
@@ -159,7 +161,7 @@ claude
 brew install whisper-cli
 ```
 
-> **No API keys or `.env` file required.** Clui CC uses your existing Claude Code CLI authentication (Pro/Team/Enterprise subscription).
+> **No API keys or `.env` file required.** Orbiter uses your existing Claude Code CLI authentication (Pro/Team/Enterprise subscription).
 
 </details>
 
@@ -171,7 +173,8 @@ brew install whisper-cli
 ```
 src/
 ├── main/                   # Electron main process
-│   ├── claude/             # ControlPlane, RunManager, EventNormalizer
+│   ├── claude/             # ControlPlane, Claude RunManager, EventNormalizer
+│   ├── codex/              # Codex RunManager, CodexNormalizer
 │   ├── hooks/              # PermissionServer (PreToolUse HTTP hooks)
 │   ├── marketplace/        # Plugin catalog fetching + install
 │   ├── skills/             # Skill auto-installer
@@ -181,22 +184,22 @@ src/
 │   ├── stores/             # Zustand session store
 │   ├── hooks/              # Event listeners, health reconciliation
 │   └── theme.ts            # Dual palette + CSS custom properties
-├── preload/                # Secure IPC bridge (window.clui API)
+├── preload/                # Secure IPC bridge (window.orbiter API)
 └── shared/                 # Canonical types, IPC channel definitions
 ```
 
 ### How It Works
 
-1. Each tab creates a `claude -p --output-format stream-json` subprocess.
-2. NDJSON events are parsed by `RunManager` and normalized by `EventNormalizer`.
-3. `ControlPlane` manages tab lifecycle (connecting → idle → running → completed/failed/dead).
-4. Tool permission requests arrive via HTTP hooks to `PermissionServer` (localhost only).
-5. The renderer polls backend health every 1.5s and reconciles tab state.
-6. Sessions are resumed with `--resume <session-id>` for continuity.
+1. Each tab creates a `claude -p --output-format stream-json` or `codex exec --json` subprocess depending on the selected backend.
+2. NDJSON events are parsed and normalized to a common `NormalizedEvent` format by backend-specific normalizers.
+3. `ControlPlane` manages tab lifecycle and routes requests to the correct backend (Claude RunManager or Codex RunManager).
+4. Tool permission requests arrive via HTTP hooks (Claude) or NDJSON approval events (Codex).
+5. The renderer is backend-agnostic — it only sees `NormalizedEvent` and renders identically for both backends.
+6. Sessions are resumed with `claude --resume` or `codex exec resume` for continuity.
 
 ### Network Behavior
 
-Clui CC operates almost entirely offline. The only outbound network calls are:
+Orbiter operates almost entirely offline. The only outbound network calls are:
 
 | Endpoint | Purpose | Required |
 |----------|---------|----------|
@@ -229,9 +232,9 @@ npm run doctor
 
 ## Known Limitations
 
-- **macOS only** — transparent overlay, tray icon, and node-pty are macOS-specific. Windows/Linux support is not currently implemented.
-- **Requires Claude Code CLI** — Clui CC is a UI layer, not a standalone AI client. You need an authenticated `claude` CLI.
-- **Permission mode** — uses `--permission-mode default`. The PTY interactive transport is legacy and disabled by default.
+- **Requires at least one CLI** — Orbiter is a UI layer, not a standalone AI client. You need an authenticated `claude` CLI and/or `codex` CLI installed.
+- **Permission mode** — Claude uses `--permission-mode default`. The PTY interactive transport is legacy and disabled by default.
+- **Codex support** — requires `codex` CLI (npm: `@openai/codex`). Codex tabs work independently from Claude tabs.
 
 ## License
 

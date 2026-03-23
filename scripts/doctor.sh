@@ -1,7 +1,7 @@
 #!/bin/bash
-# Clui CC environment doctor — read-only diagnostics, no installs.
+# Orbiter environment doctor — read-only diagnostics, no installs.
 
-echo "Clui CC Environment Check"
+echo "Orbiter Environment Check"
 echo "========================="
 echo
 

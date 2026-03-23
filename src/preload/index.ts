@@ -1,11 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/types'
-import type { RunOptions, NormalizedEvent, HealthReport, EnrichedError, Attachment, SessionMeta, CatalogPlugin, SessionLoadMessage } from '../shared/types'
+import type { BackendType, RunOptions, NormalizedEvent, HealthReport, EnrichedError, Attachment, SessionMeta, CatalogPlugin, SessionLoadMessage } from '../shared/types'
 
-export interface CluiAPI {
+export interface OrbiterAPI {
   // ─── Request-response (renderer → main) ───
-  start(): Promise<{ version: string; auth: { email?: string; subscriptionType?: string; authMethod?: string }; mcpServers: string[]; projectPath: string; homePath: string }>
-  createTab(): Promise<{ tabId: string }>
+  start(): Promise<{ version: string; auth: { email?: string; subscriptionType?: string; authMethod?: string }; mcpServers: string[]; projectPath: string; homePath: string; codexAvailable: boolean }>
+  createTab(backend?: BackendType): Promise<{ tabId: string }>
   prompt(tabId: string, requestId: string, options: RunOptions): Promise<void>
   cancel(requestId: string): Promise<boolean>
   stopTab(tabId: string): Promise<boolean>
@@ -15,7 +15,7 @@ export interface CluiAPI {
   closeTab(tabId: string): Promise<void>
   selectDirectory(): Promise<string | null>
   openExternal(url: string): Promise<boolean>
-  openInTerminal(sessionId: string | null, projectPath?: string): Promise<boolean>
+  openInTerminal(sessionId: string | null, projectPath?: string, backend?: BackendType): Promise<boolean>
   attachFiles(): Promise<Attachment[] | null>
   takeScreenshot(): Promise<Attachment | null>
   pasteImage(dataUrl: string): Promise<Attachment | null>
@@ -26,11 +26,15 @@ export interface CluiAPI {
   resetTabSession(tabId: string): void
   listSessions(projectPath?: string): Promise<SessionMeta[]>
   loadSession(sessionId: string, projectPath?: string): Promise<SessionLoadMessage[]>
+  listCodexSessions(projectPath?: string): Promise<SessionMeta[]>
+  loadCodexSession(sessionId: string): Promise<SessionLoadMessage[]>
   fetchMarketplace(forceRefresh?: boolean): Promise<{ plugins: CatalogPlugin[]; error: string | null }>
   listInstalledPlugins(): Promise<string[]>
   installPlugin(repo: string, pluginName: string, marketplace: string, sourcePath?: string, isSkillMd?: boolean): Promise<{ ok: boolean; error?: string }>
   uninstallPlugin(pluginName: string): Promise<{ ok: boolean; error?: string }>
   setPermissionMode(mode: string): void
+  setTabBackend(tabId: string, backend: BackendType): void
+  checkBackend(backend: string): Promise<{ available: boolean; version?: string }>
   getPlatformInfo(): Promise<{ platform: string; supportsClickThrough: boolean; isWayland: boolean }>
   getTheme(): Promise<{ isDark: boolean }>
   onThemeChange(callback: (isDark: boolean) => void): () => void
@@ -52,10 +56,10 @@ export interface CluiAPI {
   onWindowShown(callback: () => void): () => void
 }
 
-const api: CluiAPI = {
+const api: OrbiterAPI = {
   // ─── Request-response ───
   start: () => ipcRenderer.invoke(IPC.START),
-  createTab: () => ipcRenderer.invoke(IPC.CREATE_TAB),
+  createTab: (backend?) => ipcRenderer.invoke(IPC.CREATE_TAB, backend ? { backend } : undefined),
   prompt: (tabId, requestId, options) => ipcRenderer.invoke(IPC.PROMPT, { tabId, requestId, options }),
   cancel: (requestId) => ipcRenderer.invoke(IPC.CANCEL, requestId),
   stopTab: (tabId) => ipcRenderer.invoke(IPC.STOP_TAB, tabId),
@@ -65,7 +69,7 @@ const api: CluiAPI = {
   closeTab: (tabId) => ipcRenderer.invoke(IPC.CLOSE_TAB, tabId),
   selectDirectory: () => ipcRenderer.invoke(IPC.SELECT_DIRECTORY),
   openExternal: (url) => ipcRenderer.invoke(IPC.OPEN_EXTERNAL, url),
-  openInTerminal: (sessionId, projectPath) => ipcRenderer.invoke(IPC.OPEN_IN_TERMINAL, { sessionId, projectPath }),
+  openInTerminal: (sessionId, projectPath, backend) => ipcRenderer.invoke(IPC.OPEN_IN_TERMINAL, { sessionId, projectPath, backend }),
   attachFiles: () => ipcRenderer.invoke(IPC.ATTACH_FILES),
   takeScreenshot: () => ipcRenderer.invoke(IPC.TAKE_SCREENSHOT),
   pasteImage: (dataUrl) => ipcRenderer.invoke(IPC.PASTE_IMAGE, dataUrl),
@@ -77,6 +81,8 @@ const api: CluiAPI = {
   resetTabSession: (tabId) => ipcRenderer.send(IPC.RESET_TAB_SESSION, tabId),
   listSessions: (projectPath?: string) => ipcRenderer.invoke(IPC.LIST_SESSIONS, projectPath),
   loadSession: (sessionId: string, projectPath?: string) => ipcRenderer.invoke(IPC.LOAD_SESSION, { sessionId, projectPath }),
+  listCodexSessions: (projectPath?: string) => ipcRenderer.invoke(IPC.LIST_CODEX_SESSIONS, projectPath),
+  loadCodexSession: (sessionId: string) => ipcRenderer.invoke(IPC.LOAD_CODEX_SESSION, sessionId),
   fetchMarketplace: (forceRefresh) => ipcRenderer.invoke(IPC.MARKETPLACE_FETCH, { forceRefresh }),
   listInstalledPlugins: () => ipcRenderer.invoke(IPC.MARKETPLACE_INSTALLED),
   installPlugin: (repo, pluginName, marketplace, sourcePath, isSkillMd) =>
@@ -84,6 +90,8 @@ const api: CluiAPI = {
   uninstallPlugin: (pluginName) =>
     ipcRenderer.invoke(IPC.MARKETPLACE_UNINSTALL, { pluginName }),
   setPermissionMode: (mode) => ipcRenderer.send(IPC.SET_PERMISSION_MODE, mode),
+  setTabBackend: (tabId, backend) => ipcRenderer.send(IPC.SET_TAB_BACKEND, { tabId, backend }),
+  checkBackend: (backend) => ipcRenderer.invoke(IPC.CHECK_BACKEND, backend),
   getPlatformInfo: () => ipcRenderer.invoke(IPC.GET_PLATFORM_INFO),
   getTheme: () => ipcRenderer.invoke(IPC.GET_THEME),
   onThemeChange: (callback) => {
@@ -111,22 +119,22 @@ const api: CluiAPI = {
     ]
     // Single unified handler — all normalized events come through one channel
     const handler = (_e: Electron.IpcRendererEvent, tabId: string, event: NormalizedEvent) => callback(tabId, event)
-    ipcRenderer.on('clui:normalized-event', handler)
-    return () => ipcRenderer.removeListener('clui:normalized-event', handler)
+    ipcRenderer.on('orbiter:normalized-event', handler)
+    return () => ipcRenderer.removeListener('orbiter:normalized-event', handler)
   },
 
   onTabStatusChange: (callback) => {
     const handler = (_e: Electron.IpcRendererEvent, tabId: string, newStatus: string, oldStatus: string) =>
       callback(tabId, newStatus, oldStatus)
-    ipcRenderer.on('clui:tab-status-change', handler)
-    return () => ipcRenderer.removeListener('clui:tab-status-change', handler)
+    ipcRenderer.on('orbiter:tab-status-change', handler)
+    return () => ipcRenderer.removeListener('orbiter:tab-status-change', handler)
   },
 
   onError: (callback) => {
     const handler = (_e: Electron.IpcRendererEvent, tabId: string, error: EnrichedError) =>
       callback(tabId, error)
-    ipcRenderer.on('clui:enriched-error', handler)
-    return () => ipcRenderer.removeListener('clui:enriched-error', handler)
+    ipcRenderer.on('orbiter:enriched-error', handler)
+    return () => ipcRenderer.removeListener('orbiter:enriched-error', handler)
   },
 
   onSkillStatus: (callback) => {
@@ -142,4 +150,4 @@ const api: CluiAPI = {
   },
 }
 
-contextBridge.exposeInMainWorld('clui', api)
+contextBridge.exposeInMainWorld('orbiter', api)

@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {
-  FileText, PencilSimple, FileArrowUp, Terminal, MagnifyingGlass, Globe,
-  Robot, Question, Wrench, FolderOpen, Copy, Check, CaretRight, CaretDown,
-  SpinnerGap, ArrowCounterClockwise, Square,
+  FileTextIcon, PencilSimpleIcon, FileArrowUpIcon, TerminalIcon, MagnifyingGlassIcon, GlobeIcon,
+  RobotIcon, QuestionIcon, WrenchIcon, FolderOpenIcon, CopyIcon, CheckIcon, CaretRightIcon, CaretDownIcon,
+  SpinnerGapIcon, ArrowCounterClockwiseIcon, SquareIcon,
 } from '@phosphor-icons/react'
 import { useSessionStore } from '../stores/sessionStore'
 import { PermissionCard } from './PermissionCard'
@@ -142,7 +142,7 @@ export function ConversationView() {
 
   return (
     <div
-      data-clui-ui
+      data-orbiter-ui
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -158,10 +158,7 @@ export function ConversationView() {
           <div className="flex justify-center py-2">
             <button
               onClick={handleLoadOlder}
-              className="text-[11px] px-3 py-1 rounded-full transition-colors cursor-pointer"
-              style={{ color: colors.textTertiary, border: `1px solid ${colors.toolBorder}` }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = colors.surfaceHover }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+              className="text-[11px] px-3 py-1 rounded-full transition-colors cursor-pointer text-text-tertiary hover:bg-surface-hover border border-tool-border"
             >
               Load {Math.min(PAGE_SIZE, hiddenCount)} older messages ({hiddenCount} hidden)
             </button>
@@ -243,29 +240,27 @@ export function ConversationView() {
           {isRunning && (
             <span className="flex items-center gap-1.5">
               <span className="flex gap-[3px]">
-                <span className="w-[4px] h-[4px] rounded-full animate-bounce-dot" style={{ background: colors.statusRunning, animationDelay: '0ms' }} />
-                <span className="w-[4px] h-[4px] rounded-full animate-bounce-dot" style={{ background: colors.statusRunning, animationDelay: '150ms' }} />
-                <span className="w-[4px] h-[4px] rounded-full animate-bounce-dot" style={{ background: colors.statusRunning, animationDelay: '300ms' }} />
+                <span className="w-[4px] h-[4px] rounded-full animate-bounce-dot bg-status-running" style={{ animationDelay: '0ms' }} />
+                <span className="w-[4px] h-[4px] rounded-full animate-bounce-dot bg-status-running" style={{ animationDelay: '150ms' }} />
+                <span className="w-[4px] h-[4px] rounded-full animate-bounce-dot bg-status-running" style={{ animationDelay: '300ms' }} />
               </span>
-              <span style={{ color: colors.textSecondary }}>{tab.currentActivity || 'Working...'}</span>
+              <span className="text-text-secondary">{tab.currentActivity || 'Working...'}</span>
             </span>
           )}
 
           {isDead && (
-            <span style={{ color: colors.statusError, fontSize: 11 }}>Session ended unexpectedly</span>
+            <span className="text-status-error text-[11px]">Session ended unexpectedly</span>
           )}
 
           {isFailed && (
             <span className="flex items-center gap-1.5">
-              <span style={{ color: colors.statusError, fontSize: 11 }}>Failed</span>
+              <span className="text-status-error text-[11px]">Failed</span>
               <button
                 onClick={handleRetry}
-                className="flex items-center gap-1 rounded-full px-2 py-0.5 transition-colors cursor-pointer"
-                style={{ color: colors.accent, fontSize: 11 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = colors.accentSoft }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                className="flex items-center gap-1 rounded-full px-2 py-0.5 transition-colors cursor-pointer text-accent hover:bg-accent-soft"
+                style={{ fontSize: 11 }}
               >
-                <ArrowCounterClockwise size={10} />
+                <ArrowCounterClockwiseIcon size={10} />
                 Retry
               </button>
             </span>
@@ -289,11 +284,10 @@ export function ConversationView() {
 
 function EmptyState() {
   const setBaseDirectory = useSessionStore((s) => s.setBaseDirectory)
-  const colors = useColors()
   const [shortcutLabel, setShortcutLabel] = useState('⌥ + Space')
 
   useEffect(() => {
-    window.clui.getPlatformInfo().then(({ platform, isWayland }) => {
+    window.orbiter.getPlatformInfo().then(({ platform, isWayland }) => {
       if (platform === 'linux') {
         setShortcutLabel('Ctrl + Alt + Space')
       }
@@ -301,7 +295,7 @@ function EmptyState() {
   }, [])
 
   const handleChooseFolder = async () => {
-    const dir = await window.clui.selectDirectory()
+    const dir = await window.orbiter.selectDirectory()
     if (dir) {
       setBaseDirectory(dir)
     }
@@ -309,26 +303,17 @@ function EmptyState() {
 
   return (
     <div
-      className="flex flex-col items-center justify-center px-4 py-3 gap-1.5"
-      style={{ minHeight: 80 }}
+      className="flex flex-col items-center justify-center px-4 py-3 gap-1.5 min-h-[80px]"
     >
       <button
         onClick={handleChooseFolder}
-        className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-lg transition-colors"
-        style={{
-          color: colors.accent,
-          background: colors.surfaceHover,
-          border: 'none',
-          cursor: 'pointer',
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.3)' }}
-        onMouseLeave={(e) => { e.currentTarget.style.filter = 'none' }}
+        className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-lg transition-all text-accent bg-surface-hover cursor-pointer border-none hover:brightness-125"
       >
-        <FolderOpen size={13} />
+        <FolderOpenIcon size={13} />
         Choose folder
       </button>
-      <span className="text-[11px]" style={{ color: colors.textTertiary }}>
-        Press <strong style={{ color: colors.textSecondary }}>{shortcutLabel}</strong> to show/hide this overlay
+      <span className="text-[11px] text-text-tertiary">
+        Press <strong className="text-text-secondary">{shortcutLabel}</strong> to show/hide this overlay
       </span>
     </div>
   )
@@ -338,7 +323,6 @@ function EmptyState() {
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
-  const colors = useColors()
 
   const handleCopy = async () => {
     try {
@@ -355,15 +339,10 @@ function CopyButton({ text }: { text: string }) {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.12 }}
       onClick={handleCopy}
-      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] cursor-pointer flex-shrink-0"
-      style={{
-        background: copied ? colors.statusCompleteBg : 'transparent',
-        color: copied ? colors.statusComplete : colors.textTertiary,
-        border: 'none',
-      }}
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] cursor-pointer flex-shrink-0 border-none ${copied ? 'bg-status-complete-bg text-status-complete' : 'bg-transparent text-text-tertiary'}`}
       title="Copy response"
     >
-      {copied ? <Check size={11} /> : <Copy size={11} />}
+      {copied ? <CheckIcon size={11} /> : <CopyIcon size={11} />}
       <span>{copied ? 'Copied' : 'Copy'}</span>
     </motion.button>
   )
@@ -372,10 +351,8 @@ function CopyButton({ text }: { text: string }) {
 // ─── Interrupt Button ───
 
 function InterruptButton({ tabId }: { tabId: string }) {
-  const colors = useColors()
-
   const handleStop = () => {
-    window.clui.stopTab(tabId)
+    window.orbiter.stopTab(tabId)
   }
 
   return (
@@ -385,17 +362,10 @@ function InterruptButton({ tabId }: { tabId: string }) {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.12 }}
       onClick={handleStop}
-      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] cursor-pointer flex-shrink-0 transition-colors"
-      style={{
-        background: 'transparent',
-        color: colors.statusError,
-        border: 'none',
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = colors.statusErrorBg }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] cursor-pointer flex-shrink-0 transition-colors text-status-error border-none hover:bg-status-error-bg"
       title="Stop current task"
     >
-      <Square size={9} weight="fill" />
+      <SquareIcon size={9} weight="fill" />
       <span>Interrupt</span>
     </motion.button>
   )
@@ -404,16 +374,10 @@ function InterruptButton({ tabId }: { tabId: string }) {
 // ─── User Message ───
 
 function UserMessage({ message, skipMotion }: { message: Message; skipMotion?: boolean }) {
-  const colors = useColors()
   const content = (
     <div
-      className="text-[13px] leading-[1.5] px-3 py-1.5 max-w-[85%]"
-      style={{
-        background: colors.userBubble,
-        color: colors.userBubbleText,
-        border: `1px solid ${colors.userBubbleBorder}`,
-        borderRadius: '14px 14px 4px 14px',
-      }}
+      className="text-[13px] leading-[1.5] px-3 py-1.5 max-w-[85%] bg-user-bubble text-user-bubble-text border border-user-bubble-border"
+      style={{ borderRadius: '14px 14px 4px 14px' }}
     >
       {message.content}
     </div>
@@ -438,8 +402,6 @@ function UserMessage({ message, skipMotion }: { message: Message; skipMotion?: b
 // ─── Queued Message (waiting at bottom until processed) ───
 
 function QueuedMessage({ content }: { content: string }) {
-  const colors = useColors()
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -449,14 +411,8 @@ function QueuedMessage({ content }: { content: string }) {
       className="flex justify-end py-1.5"
     >
       <div
-        className="text-[13px] leading-[1.5] px-3 py-1.5 max-w-[85%]"
-        style={{
-          background: colors.userBubble,
-          color: colors.userBubbleText,
-          border: `1px dashed ${colors.userBubbleBorder}`,
-          borderRadius: '14px 14px 4px 14px',
-          opacity: 0.6,
-        }}
+        className="text-[13px] leading-[1.5] px-3 py-1.5 max-w-[85%] bg-user-bubble text-user-bubble-text border border-dashed border-user-bubble-border opacity-60"
+        style={{ borderRadius: '14px 14px 4px 14px' }}
       >
         {content}
       </div>
@@ -524,23 +480,22 @@ function TableScrollWrapper({ children }: { children: React.ReactNode }) {
 
 // ─── Image card — graceful fallback when src returns 404 ───
 
-function ImageCard({ src, alt, colors }: { src?: string; alt?: string; colors: ReturnType<typeof useColors> }) {
+function ImageCard({ src, alt }: { src?: string; alt?: string }) {
   const [failed, setFailed] = useState(false)
   // Reset failed state when src changes (e.g. during streaming)
   useEffect(() => { setFailed(false) }, [src])
   const label = alt || 'Image'
-  const open = () => { if (src) window.clui.openExternal(String(src)) }
+  const open = () => { if (src) window.orbiter.openExternal(String(src)) }
 
   if (failed || !src) {
     return (
       <button
         type="button"
-        className="inline-flex items-center gap-1.5 my-1 px-2.5 py-1.5 rounded-md text-[12px] cursor-pointer"
-        style={{ background: colors.surfacePrimary, color: colors.accent, border: `1px solid ${colors.toolBorder}` }}
+        className="inline-flex items-center gap-1.5 my-1 px-2.5 py-1.5 rounded-md text-[12px] cursor-pointer bg-surface-primary text-accent border border-tool-border"
         onClick={open}
         title={src}
       >
-        <Globe size={12} />
+        <GlobeIcon size={12} />
         Image unavailable{alt ? ` — ${alt}` : ''}
       </button>
     )
@@ -549,8 +504,7 @@ function ImageCard({ src, alt, colors }: { src?: string; alt?: string; colors: R
   return (
     <button
       type="button"
-      className="block my-2 rounded-lg overflow-hidden border text-left cursor-pointer"
-      style={{ borderColor: colors.toolBorder, background: colors.surfacePrimary }}
+      className="block my-2 rounded-lg overflow-hidden border text-left cursor-pointer border-tool-border bg-surface-primary"
       onClick={open}
       title={src}
     >
@@ -562,7 +516,7 @@ function ImageCard({ src, alt, colors }: { src?: string; alt?: string; colors: R
         onError={() => setFailed(true)}
       />
       {alt && (
-        <div className="px-2 py-1 text-[11px]" style={{ color: colors.textTertiary }}>
+        <div className="px-2 py-1 text-[11px] text-text-tertiary">
           {alt}
         </div>
       )}
@@ -579,24 +533,21 @@ const AssistantMessage = React.memo(function AssistantMessage({
   message: Message
   skipMotion?: boolean
 }) {
-  const colors = useColors()
-
   const markdownComponents = useMemo(() => ({
     table: ({ children }: any) => <TableScrollWrapper>{children}</TableScrollWrapper>,
     a: ({ href, children }: any) => (
       <button
         type="button"
-        className="underline decoration-dotted underline-offset-2 cursor-pointer"
-        style={{ color: colors.accent }}
+        className="underline decoration-dotted underline-offset-2 cursor-pointer text-accent"
         onClick={() => {
-          if (href) window.clui.openExternal(String(href))
+          if (href) window.orbiter.openExternal(String(href))
         }}
       >
         {children}
       </button>
     ),
-    img: ({ src, alt }: any) => <ImageCard src={src} alt={alt} colors={colors} />,
-  }), [colors])
+    img: ({ src, alt }: any) => <ImageCard src={src} alt={alt} />,
+  }), [])
 
   const inner = (
     <div className="group/msg relative">
@@ -676,7 +627,6 @@ function getToolDescription(name: string, input?: string): string {
 function ToolGroup({ tools, skipMotion }: { tools: Message[]; skipMotion?: boolean }) {
   const hasRunning = tools.some((t) => t.toolStatus === 'running')
   const [expanded, setExpanded] = useState(false)
-  const colors = useColors()
 
   const isOpen = expanded || hasRunning
 
@@ -689,8 +639,8 @@ function ToolGroup({ tools, skipMotion }: { tools: Message[]; skipMotion?: boole
             className="flex items-center gap-1 cursor-pointer mb-1.5"
             onClick={() => setExpanded(false)}
           >
-            <CaretDown size={10} style={{ color: colors.textMuted }} />
-            <span className="text-[11px]" style={{ color: colors.textMuted }}>
+            <CaretDownIcon size={10} className="text-text-muted" />
+            <span className="text-[11px] text-text-muted">
               Used {tools.length} tool{tools.length !== 1 ? 's' : ''}
             </span>
           </div>
@@ -700,8 +650,7 @@ function ToolGroup({ tools, skipMotion }: { tools: Message[]; skipMotion?: boole
         <div className="relative pl-6">
           {/* Vertical line */}
           <div
-            className="absolute left-[10px] top-1 bottom-1 w-px"
-            style={{ background: colors.timelineLine }}
+            className="absolute left-[10px] top-1 bottom-1 w-px bg-timeline-line"
           />
 
           <div className="space-y-3">
@@ -714,14 +663,10 @@ function ToolGroup({ tools, skipMotion }: { tools: Message[]; skipMotion?: boole
                 <div key={tool.id} className="relative">
                   {/* Timeline node */}
                   <div
-                    className="absolute -left-6 top-[1px] w-[20px] h-[20px] rounded-full flex items-center justify-center"
-                    style={{
-                      background: isRunning ? colors.toolRunningBg : colors.toolBg,
-                      border: `1px solid ${isRunning ? colors.toolRunningBorder : colors.toolBorder}`,
-                    }}
+                    className={`absolute -left-6 top-[1px] w-[20px] h-[20px] rounded-full flex items-center justify-center ${isRunning ? 'bg-tool-running-bg border border-tool-running-border' : 'bg-tool-bg border border-tool-border'}`}
                   >
                     {isRunning
-                      ? <SpinnerGap size={10} className="animate-spin" style={{ color: colors.statusRunning }} />
+                      ? <SpinnerGapIcon size={10} className="animate-spin text-status-running" />
                       : <ToolIcon name={toolName} size={10} />
                     }
                   </div>
@@ -729,8 +674,7 @@ function ToolGroup({ tools, skipMotion }: { tools: Message[]; skipMotion?: boole
                   {/* Tool description */}
                   <div className="min-w-0">
                     <span
-                      className="text-[12px] leading-[1.4] block truncate"
-                      style={{ color: isRunning ? colors.textSecondary : colors.textTertiary }}
+                      className={`text-[12px] leading-[1.4] block truncate ${isRunning ? 'text-text-secondary' : 'text-text-tertiary'}`}
                     >
                       {desc}
                     </span>
@@ -738,18 +682,14 @@ function ToolGroup({ tools, skipMotion }: { tools: Message[]; skipMotion?: boole
                     {/* Result badge */}
                     {!isRunning && (
                       <span
-                        className="inline-block text-[10px] mt-0.5 px-1.5 py-[1px] rounded"
-                        style={{
-                          background: tool.toolStatus === 'error' ? colors.statusErrorBg : colors.surfaceHover,
-                          color: tool.toolStatus === 'error' ? colors.statusError : colors.textMuted,
-                        }}
+                        className={`inline-block text-[10px] mt-0.5 px-1.5 py-[1px] rounded ${tool.toolStatus === 'error' ? 'bg-status-error-bg text-status-error' : 'bg-surface-hover text-text-muted'}`}
                       >
                         Result
                       </span>
                     )}
 
                     {isRunning && (
-                      <span className="text-[10px] mt-0.5 block" style={{ color: colors.textMuted }}>
+                      <span className="text-[10px] mt-0.5 block text-text-muted">
                         running...
                       </span>
                     )}
@@ -784,8 +724,8 @@ function ToolGroup({ tools, skipMotion }: { tools: Message[]; skipMotion?: boole
       className="flex items-start gap-1 cursor-pointer py-[2px]"
       onClick={() => setExpanded(true)}
     >
-      <CaretRight size={10} className="flex-shrink-0 mt-[2px]" style={{ color: colors.textTertiary }} />
-      <span className="text-[11px] leading-[1.4]" style={{ color: colors.textTertiary }}>
+      <CaretRightIcon size={10} className="flex-shrink-0 mt-[2px] text-text-tertiary" />
+      <span className="text-[11px] leading-[1.4] text-text-tertiary">
         {summary}
       </span>
     </div>
@@ -809,15 +749,10 @@ function ToolGroup({ tools, skipMotion }: { tools: Message[]; skipMotion?: boole
 
 function SystemMessage({ message, skipMotion }: { message: Message; skipMotion?: boolean }) {
   const isError = message.content.startsWith('Error:') || message.content.includes('unexpectedly')
-  const colors = useColors()
 
   const inner = (
     <div
-      className="text-[11px] leading-[1.5] px-2.5 py-1 rounded-lg inline-block whitespace-pre-wrap"
-      style={{
-        background: isError ? colors.statusErrorBg : colors.surfaceHover,
-        color: isError ? colors.statusError : colors.textTertiary,
-      }}
+      className={`text-[11px] leading-[1.5] px-2.5 py-1 rounded-lg inline-block whitespace-pre-wrap ${isError ? 'bg-status-error-bg text-status-error' : 'bg-surface-hover text-text-tertiary'}`}
     >
       {message.content}
     </div>
@@ -840,23 +775,22 @@ function SystemMessage({ message, skipMotion }: { message: Message; skipMotion?:
 // ─── Tool Icon mapping ───
 
 function ToolIcon({ name, size = 12 }: { name: string; size?: number }) {
-  const colors = useColors()
   const ICONS: Record<string, React.ReactNode> = {
-    Read: <FileText size={size} />,
-    Edit: <PencilSimple size={size} />,
-    Write: <FileArrowUp size={size} />,
-    Bash: <Terminal size={size} />,
-    Glob: <FolderOpen size={size} />,
-    Grep: <MagnifyingGlass size={size} />,
-    WebSearch: <Globe size={size} />,
-    WebFetch: <Globe size={size} />,
-    Agent: <Robot size={size} />,
-    AskUserQuestion: <Question size={size} />,
+    Read: <FileTextIcon size={size} />,
+    Edit: <PencilSimpleIcon size={size} />,
+    Write: <FileArrowUpIcon size={size} />,
+    Bash: <TerminalIcon size={size} />,
+    Glob: <FolderOpenIcon size={size} />,
+    Grep: <MagnifyingGlassIcon size={size} />,
+    WebSearch: <GlobeIcon size={size} />,
+    WebFetch: <GlobeIcon size={size} />,
+    Agent: <RobotIcon size={size} />,
+    AskUserQuestion: <QuestionIcon size={size} />,
   }
 
   return (
-    <span className="flex items-center" style={{ color: colors.textTertiary }}>
-      {ICONS[name] || <Wrench size={size} />}
+    <span className="flex items-center text-text-tertiary">
+      {ICONS[name] || <WrenchIcon size={size} />}
     </span>
   )
 }

@@ -1,14 +1,14 @@
-# Contributing to Clui CC
+# Contributing to Orbiter
 
-Thanks for your interest in contributing! Clui CC is a desktop overlay for Claude Code, and we welcome bug reports, feature ideas, and pull requests.
+Thanks for your interest in contributing! Orbiter is a desktop overlay for Claude Code, and we welcome bug reports, feature ideas, and pull requests.
 
 ## Getting Started
 
 1. Make sure you have the [prerequisites](README.md#prerequisites) installed (macOS, Xcode CLT, Node.js 18+, Claude Code CLI 2.1+)
 2. Fork and clone the repo:
    ```bash
-   git clone https://github.com/<your-username>/clui-cc.git
-   cd clui-cc
+   git clone https://github.com/<your-username>/orbiter.git
+   cd orbiter
    ```
 3. Check your environment (optional but recommended):
    ```bash
@@ -33,7 +33,7 @@ Thanks for your interest in contributing! Clui CC is a desktop overlay for Claud
 
 - **Main process** changes (`src/main/`) require a full restart (`Ctrl+C` then `npm run dev`).
 - **Renderer** changes (`src/renderer/`) hot-reload automatically.
-- Set `CLUI_DEBUG=1` to enable verbose main-process logging to `~/.clui-debug.log`.
+- Set `ORBITER_DEBUG=1` to enable verbose main-process logging to `~/.orbiter-debug.log`.
 - The app creates a transparent, click-through window. Use `⌥ + Space` to toggle visibility (fallback: `Cmd+Shift+K`).
 
 ## Code Style

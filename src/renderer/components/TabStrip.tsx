@@ -1,7 +1,8 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X } from '@phosphor-icons/react'
+import { PlusIcon, XIcon } from '@phosphor-icons/react'
 import { useSessionStore } from '../stores/sessionStore'
+import { ClaudeIcon, CodexIcon } from './BackendIcons'
 import { HistoryPicker } from './HistoryPicker'
 import { SettingsPopover } from './SettingsPopover'
 import { useColors } from '../theme'
@@ -44,11 +45,13 @@ export function TabStrip() {
   const closeTab = useSessionStore((s) => s.closeTab)
   const colors = useColors()
 
+  // Show backend icon only when tabs use mixed backends
+  const hasMixedBackends = tabs.length > 1 && new Set(tabs.map((t) => t.backend)).size > 1
+
   return (
     <div
-      data-clui-ui
-      className="flex items-center no-drag"
-      style={{ padding: '8px 0' }}
+      data-orbiter-ui
+      className="flex items-center no-drag py-2"
     >
       {/* Scrollable tabs area — clipped by master card edge */}
       <div className="relative min-w-0 flex-1">
@@ -77,33 +80,21 @@ export function TabStrip() {
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.15 }}
                   onClick={() => selectTab(tab.id)}
-                  className="group flex items-center gap-1.5 cursor-pointer select-none flex-shrink-0 max-w-[160px] transition-all duration-150"
-                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = colors.textSecondary }}
-                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = colors.textTertiary }}
-                  style={{
-                    background: isActive ? colors.tabActive : 'transparent',
-                    border: isActive ? `1px solid ${colors.tabActiveBorder}` : '1px solid transparent',
-                    borderRadius: 9999,
-                    padding: '4px 10px',
-                    fontSize: 12,
-                    color: isActive ? colors.textPrimary : colors.textTertiary,
-                    fontWeight: isActive ? 500 : 400,
-                  }}
+                  className={`group flex items-center gap-1.5 cursor-pointer select-none flex-shrink-0 max-w-[160px] transition-all duration-150 rounded-full px-2.5 py-1 text-[12px] border ${isActive ? 'bg-tab-active border-tab-active-border text-text-primary font-medium' : 'bg-transparent border-transparent text-text-tertiary hover:text-text-secondary'}`}
                 >
                   <StatusDot status={tab.status} hasUnread={tab.hasUnread} hasPermission={tab.permissionQueue.length > 0} />
+                  {hasMixedBackends && (
+                    tab.backend === 'codex'
+                      ? <CodexIcon size={9} className="text-text-muted shrink-0" />
+                      : <ClaudeIcon size={9} className="text-text-muted shrink-0" />
+                  )}
                   <span className="truncate flex-1">{tab.title}</span>
                   {tabs.length > 1 && (
                     <button
                       onClick={(e) => { e.stopPropagation(); closeTab(tab.id) }}
-                      className="flex-shrink-0 rounded-full w-4 h-4 flex items-center justify-center transition-opacity cursor-pointer"
-                      style={{
-                        opacity: isActive ? 0.5 : 0,
-                        color: colors.textSecondary,
-                      }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1' }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = isActive ? '0.5' : '0' }}
+                      className={`flex-shrink-0 rounded-full w-4 h-4 flex items-center justify-center transition-opacity cursor-pointer text-text-secondary ${isActive ? 'opacity-50' : 'opacity-0'} hover:opacity-100`}
                     >
-                      <X size={10} />
+                      <XIcon size={10} />
                     </button>
                   )}
                 </motion.div>
@@ -117,13 +108,10 @@ export function TabStrip() {
       <div className="flex items-center gap-0.5 flex-shrink-0 ml-1 pr-2">
         <button
           onClick={() => createTab()}
-          className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-colors cursor-pointer"
-          style={{ color: colors.textTertiary }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = colors.textPrimary }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = colors.textTertiary }}
+          className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-colors cursor-pointer text-text-tertiary hover:text-text-primary"
           title="New tab"
         >
-          <Plus size={14} />
+          <PlusIcon size={14} />
         </button>
 
         <HistoryPicker />
